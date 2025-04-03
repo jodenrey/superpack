@@ -1,0 +1,429 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+/* Modern Color Palette - Updated with more contemporary colors */
+:root {
+    --primary: #5D69E3;       /* Modern Indigo */
+    --primary-light: #8A93FF;
+    --primary-dark: #3B4CBB;
+    --secondary: #FF6B8B;     /* Soft Pink */
+    --secondary-light: #FF9CAF;
+    --secondary-dark: #E63E69;
+    --gray-light: #f8fafc;
+    --gray: #e4e9f2;
+    --gray-dark: #64748b;
+    --success: #10b981;
+    --info: #0ea5e9;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --dark: #1e293b;
+    --light: #ffffff;
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    --radius: 12px;
+    --radius-sm: 8px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+/* Small Sidebar - More modern and subtle */
+.sidebar {
+    width: 70px;
+    height: 100vh;
+    background: var(--primary);
+    color: var(--light);
+    position: fixed;
+    top: 0;
+    left: 0;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+    transition: var(--transition);
+    box-shadow: var(--shadow);
+    z-index: 999;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.container-sidebar-all {
+    height: 95%;
+    display: flex;
+    flex-direction: column;
+}
+
+.container-sidebar-options {
+    height: 100%;
+    width: 100%;
+}
+
+.container-sidebar-logo {
+    width: 100%;
+    padding: 18px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.container-sidebar-logo:hover {
+    background-color: rgba(255,255,255,0.15);
+}
+
+.nav_list {
+    padding: 12px 0;
+    list-style: none;
+    height: 90%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.nav_list a {
+    color: var(--light);
+    text-decoration: none;
+    opacity: 0.85;
+    transition: var(--transition);
+}
+
+.nav_list li {
+    width: 85%;
+    display: flex;
+    justify-content: center;
+    padding: 14px 0;
+    position: relative;
+    transition: var(--transition);
+    border-radius: var(--radius-sm);
+    margin: 2px auto;
+}
+
+.nav_list li:hover {
+    background-color: rgba(255,255,255,0.15);
+    transform: translateY(-2px);
+}
+
+.nav_list li:active {
+    transform: translateY(0);
+}
+
+.nav_list li:hover a {
+    opacity: 1;
+}
+
+.nav_list a i {
+    font-size: 20px;
+}
+
+/* Modern tooltip for small sidebar icons */
+.nav_list li::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 80px;
+    top: 50%;
+    transform: translateY(-50%) translateX(10px);
+    background-color: var(--dark);
+    color: var(--light);
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    z-index: 1000;
+    box-shadow: var(--shadow);
+    transition: all 0.3s ease, transform 0.2s ease;
+    pointer-events: none;
+}
+
+.nav_list li:hover::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(-50%) translateX(0);
+}
+
+/* Big Sidebar - More refined styling */
+.big-sidebar {
+    width: 260px;
+    height: 100vh;
+    background: var(--primary);
+    color: var(--light);
+    position: fixed;
+    left: -350px;
+    top: 0;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+    transition: var(--transition);
+    box-shadow: var(--shadow-lg);
+    z-index: 1000;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.big-nav_list {
+    list-style: none;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.big-nav_list li {
+    margin-bottom: 3px;
+}
+
+.big-nav_list a {
+    display: flex;
+    align-items: center;
+    color: var(--light);
+    text-decoration: none;
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    transition: var(--transition);
+    opacity: 0.85;
+}
+
+.big-nav_list .icon {
+    margin-right: 15px;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+}
+
+.big-nav_list .title {
+    font-weight: 500;
+    letter-spacing: 0.2px;
+}
+
+.big-nav_list .dropdown-btn {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    color: var(--light);
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition);
+    opacity: 0.85;
+}
+
+.big-nav_list a:hover, 
+.big-nav_list .dropdown-btn:hover {
+    background-color: rgba(255,255,255,0.15);
+    opacity: 1;
+    transform: translateX(2px);
+}
+
+.big-nav_list .dropdown-container {
+    display: none;
+    padding-left: 32px;
+    transition: var(--transition);
+    margin-top: 4px;
+}
+
+.big-nav_list .dropdown-container li {
+    margin-bottom: 3px;
+}
+
+.big-nav_list .dropdown-container a {
+    padding: 10px 12px;
+    font-size: 0.92rem;
+    border-left: 2px solid rgba(255,255,255,0.2);
+}
+
+.big-nav_list .dropdown-container a:hover {
+    border-left: 2px solid var(--light);
+}
+
+.big-nav_list .dropdown-btn.active {
+    background-color: rgba(255,255,255,0.15);
+    opacity: 1;
+}
+
+.big-nav_list .dropdown-btn.active .dropdown-icon {
+    transform: rotate(180deg);
+}
+
+.big-sidebar-container-all {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.container-big-sidebar-logo {
+    display: flex;
+    align-items: center;
+}
+
+.big-sidebar-back-button {
+    padding: 6px;
+    cursor: pointer;
+    opacity: 0.85;
+    transition: var(--transition);
+    border-radius: 50%;
+}
+
+.big-sidebar-back-button:hover {
+    opacity: 1;
+    background-color: rgba(255,255,255,0.1);
+}
+
+.container-big-sidebar-options {
+    height: calc(100% - 70px);
+    padding: 10px 0;
+    overflow-y: auto;
+}
+
+/* Logo styles */
+.logo_image {
+    height: 36px;
+    width: 36px;
+    border-radius: 10px;
+    object-fit: cover;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    transition: var(--transition);
+}
+
+.container-sidebar-logo:hover .logo_image {
+    transform: scale(1.05);
+}
+
+.logo_name {
+    font-size: 18px;
+    font-weight: 600;
+    margin-left: 12px;
+    color: var(--light);
+    letter-spacing: 0.3px;
+}
+
+span {
+    font-weight: 500;
+}
+
+/* Filter Sidebar */
+.filter-sidebar {
+    width: 290px;
+    height: 100vh;
+    background: var(--primary);
+    color: var(--light);
+    position: fixed;
+    right: -300px;
+    top: 0;
+    padding: 25px 20px;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+    transition: var(--transition);
+    box-shadow: var(--shadow-lg);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.filter-sidebar h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+    letter-spacing: 0.5px;
+}
+
+.filter-sidebar button {
+    width: 100%;
+    padding: 12px;
+    margin: 6px 0;
+    background-color: rgba(255,255,255,0.15);
+    color: var(--light);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    letter-spacing: 0.3px;
+}
+
+.filter-sidebar button:hover {
+    background-color: rgba(255,255,255,0.25);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
+.filter-sidebar button:active {
+    transform: translateY(0);
+}
+
+#filter-apply-button {
+    background-color: var(--secondary);
+}
+
+#filter-back-button {
+    background-color: var(--info);
+}
+
+.filter-sidebar input,
+.filter-sidebar select {
+    width: 100%;
+    padding: 14px 16px;
+    margin: 8px 0;
+    border: none;
+    background-color: rgba(255,255,255,0.1);
+    color: var(--light);
+    border-radius: var(--radius-sm);
+    font-size: 15px;
+    transition: var(--transition);
+}
+
+.filter-sidebar input::placeholder {
+    color: rgba(255,255,255,0.6);
+}
+
+.filter-sidebar input:focus,
+.filter-sidebar select:focus {
+    outline: none;
+    background-color: rgba(255,255,255,0.2);
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.1);
+}
+
+.filter-sidebar label {
+    font-size: 14px;
+    font-weight: 500;
+    margin-top: 12px;
+    display: block;
+    color: rgba(255,255,255,0.9);
+    letter-spacing: 0.3px;
+}
+
+.filter-sidebar-buttons {
+    margin-top: 18px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255,255,255,0.12);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: rgba(255,255,255,0.3);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255,255,255,0.5);
+}

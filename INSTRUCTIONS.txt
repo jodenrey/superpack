@@ -1,0 +1,17 @@
+INSTRUCTIONS:
+
+Before Running
+
+1. Extract the zip file
+2. Rename the extracted folder as superpack
+3. Put the extracted folder to htdocs
+3. There is a new folder, ssl cert, 
+   open it tp see the contents,
+4. Paste server.crt to: C:\xampp\apache\conf\ssl.crt\server.crt 
+   Paste server.key to: C:\xampp\apache\conf\ssl.key\server.key
+
+During Running
+1. Open Xampp as admin always
+2. Run main.py
+3. replace database face_id with old tables using import
+4. import the db tables if needed
