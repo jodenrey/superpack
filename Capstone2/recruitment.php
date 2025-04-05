@@ -12,7 +12,7 @@ if (!isset($_SESSION['loggedin'])) {
 $host = "localhost";
 $user = "root";
 $password = "password";
-$database = "hr_management";
+$database = "superpack_database";
 $port = 3306;
 
 // mysqli connection

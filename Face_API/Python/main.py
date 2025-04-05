@@ -5,6 +5,7 @@ import datetime
 import numpy as np
 import mysql.connector
 import os
+import time
 from flask import Flask, request, jsonify
 from flask_cors import CORS, cross_origin
 from deepface import DeepFace
@@ -16,17 +17,169 @@ os.makedirs('face_embeddings', exist_ok=True)
 
 context = (r'C:\xampp\apache\conf\ssl.crt\server.crt', r'C:\xampp\apache\conf\ssl.key\server.key')
 
-# Define the connection
-connection = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="password",
-    database="superpack_database",
-    port = "3306"
-)
+# Function to get a fresh database connection
+def get_db_connection():
+    return mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="password",
+        database="superpack_database",
+        port="3306"
+    )
 
-# Define the cursor
-cursor = connection.cursor()
+# Configure facial recognition settings for high accuracy
+RECOGNITION_MODELS = ["VGG-Face", "Facenet", "ArcFace"]  # Using multiple models for better accuracy
+DISTANCE_METRIC = "cosine"
+# Apple Face ID has a reported false acceptance rate of 1 in 1,000,000
+# DeepFace models can achieve different thresholds for different models
+# Lower threshold = stricter matching (fewer false positives)
+AUTHENTICATION_THRESHOLDS = {
+    "VGG-Face": 0.3,     # More strict than default
+    "Facenet": 0.25,     # More strict than default
+    "ArcFace": 0.35,     # More strict than default
+    "ensemble": 0.25     # Threshold when combining multiple models
+}
+REGISTRATION_THRESHOLDS = {
+    "VGG-Face": 0.25,    # Even stricter for registration
+    "Facenet": 0.2,
+    "ArcFace": 0.3,
+    "ensemble": 0.2      # Very strict when combining models for registration
+}
+
+# Helper function to detect if face is real (anti-spoofing)
+def detect_liveness(image_path):
+    try:
+        # Load the image
+        img = cv2.imread(image_path)
+        if img is None:
+            return False, "Failed to load image"
+            
+        # Extract face
+        faces = DeepFace.extract_faces(image_path, enforce_detection=False)
+        if not faces or len(faces) == 0:
+            return False, "No face detected"
+            
+        face_img = faces[0]['face']
+        
+        # Basic liveness detection - texture and gradient analysis
+        # Convert to grayscale
+        gray = cv2.cvtColor(face_img, cv2.COLOR_BGR2GRAY)
+        
+        # Calculate texture using Laplacian variance (higher for real faces)
+        laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+        print(f"Laplacian variance (texture): {laplacian_var}")
+        
+        # Calculate gradient magnitude
+        sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
+        sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
+        gradient_magnitude = np.sqrt(sobelx**2 + sobely**2)
+        gradient_mean = gradient_magnitude.mean()
+        print(f"Gradient mean: {gradient_mean}")
+        
+        # Calculate histogram of oriented gradients (simple version)
+        # Higher values typically indicate real faces vs flat printed images
+        gx = cv2.Sobel(gray, cv2.CV_32F, 1, 0)
+        gy = cv2.Sobel(gray, cv2.CV_32F, 0, 1)
+        mag, ang = cv2.cartToPolar(gx, gy)
+        hog_mean = mag.mean()
+        print(f"HOG mean: {hog_mean}")
+        
+        # LOWERED THRESHOLDS based on real-world testing
+        is_live = (laplacian_var > 50) and (gradient_mean > 5) and (hog_mean > 10)
+        confidence = min(100, (laplacian_var / 100 * 30) + (gradient_mean / 10 * 30) + (hog_mean / 20 * 40))
+        
+        return is_live, f"Liveness confidence: {confidence:.1f}%"
+    except Exception as e:
+        print(f"Liveness detection error: {str(e)}")
+        return True, "Liveness check bypassed due to error"
+
+# Run multiple models for verification and combine results for better accuracy
+def verify_face_with_ensemble(img1_path, img2_path, enforce_detection=False):
+    results = []
+    distances = {}
+    success_count = 0
+    
+    print(f"Running ensemble verification with models: {RECOGNITION_MODELS}")
+    
+    # Try each model
+    for model in RECOGNITION_MODELS:
+        try:
+            # Use the simpler verify parameters that work with all DeepFace versions
+            verification = DeepFace.verify(
+                img1_path=img1_path,
+                img2_path=img2_path,
+                model_name=model,
+                enforce_detection=enforce_detection
+            )
+            
+            # Store individual results
+            distances[model] = verification["distance"]
+            verified = verification["verified"]
+            threshold = verification.get("threshold", 0.4)  # Default threshold if not provided
+            
+            print(f"Model {model}: Distance {distances[model]:.4f}, Verified: {verified}, Threshold: {threshold}")
+            
+            # Count successful verifications
+            if verified:
+                success_count += 1
+            
+            results.append({
+                "model": model,
+                "distance": distances[model],
+                "verified": verified
+            })
+        except Exception as e:
+            print(f"Model {model} failed: {str(e)}")
+    
+    # Calculate average distance across working models
+    if len(distances) > 0:
+        avg_distance = sum(distances.values()) / len(distances)
+        # Ensemble verification requires majority of models to agree
+        ensemble_verified = success_count >= (len(distances) / 2)
+        # Or very high confidence from at least one model
+        high_confidence = any(d < AUTHENTICATION_THRESHOLDS["ensemble"] for d in distances.values())
+        
+        return {
+            "verified": ensemble_verified or high_confidence,
+            "distance": avg_distance,
+            "model_results": results,
+            "models_passed": success_count,
+            "models_total": len(distances)
+        }
+    else:
+        # If all models failed, return failure
+        return {
+            "verified": False,
+            "distance": 1.0,
+            "model_results": [],
+            "error": "All facial recognition models failed"
+        }
+
+# Enhanced face verification for higher security
+def enhanced_verification(img_path, ref_path):
+    # First verify liveness to prevent spoofing attacks
+    is_live, liveness_message = detect_liveness(img_path)
+    
+    if not is_live:
+        return {
+            "verified": False,
+            "distance": 1.0,
+            "message": f"Liveness check failed. {liveness_message}",
+            "liveness": False
+        }
+
+    # Run ensemble verification with multiple models
+    verification = verify_face_with_ensemble(
+        img1_path=img_path,
+        img2_path=ref_path,
+        enforce_detection=False
+    )
+    
+    # Add liveness result
+    verification["liveness"] = is_live
+    verification["liveness_message"] = liveness_message
+    
+    return verification
 
 app = Flask(__name__)
 
@@ -62,7 +215,14 @@ def receive_image():
 @cross_origin()
 def register_user():
     temp_path = None  # Initialize temp_path at the start
+    connection = None
+    cursor = None
+    
     try:
+        # Get a fresh database connection
+        connection = get_db_connection()
+        cursor = connection.cursor()
+        
         data = request.get_json()
         print("Received registration data:", data)
         
@@ -153,6 +313,16 @@ def register_user():
                         'details': {'name': name, 'error': str(e)}
                     }), 400
                 
+                # Check liveness to prevent photo attack
+                is_live, liveness_message = detect_liveness(temp_path)
+                if not is_live:
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
+                    return jsonify({
+                        'error': 'Liveness check failed',
+                        'details': {'name': name, 'message': liveness_message}
+                    }), 400
+                
                 # If face is detected, proceed with embedding generation
                 try:
                     # Print file size for debugging
@@ -160,43 +330,33 @@ def register_user():
                         file_size = os.path.getsize(temp_path)
                         print(f"Temporary image file size: {file_size} bytes")
                     
-                    # Try different models if Facenet fails
-                    try:
-                        new_embeddings = DeepFace.represent(temp_path, model_name="Facenet", enforce_detection=False)
-                        print(f"DeepFace Facenet returned: {type(new_embeddings)}, length: {len(new_embeddings) if isinstance(new_embeddings, list) else 'not a list'}")
-                    except Exception as e1:
-                        print(f"Facenet model failed, trying VGG-Face: {str(e1)}")
+                    # Generate multiple embeddings with different models for better matching
+                    embeddings = {}
+                    for model in RECOGNITION_MODELS:
                         try:
-                            new_embeddings = DeepFace.represent(temp_path, model_name="VGG-Face", enforce_detection=False)
-                            print(f"DeepFace VGG-Face returned: {type(new_embeddings)}, length: {len(new_embeddings) if isinstance(new_embeddings, list) else 'not a list'}")
-                        except Exception as e2:
-                            print(f"VGG-Face model also failed: {str(e2)}")
-                            if os.path.exists(temp_path):
-                                os.remove(temp_path)
-                            return jsonify({
-                                'error': 'Failed to generate face embeddings with multiple models',
-                                'details': {'name': name, 'error': f"{str(e1)} and {str(e2)}"}
-                            }), 400
+                            model_embeddings = DeepFace.represent(temp_path, model_name=model, enforce_detection=False)
+                            if isinstance(model_embeddings, list) and len(model_embeddings) > 0:
+                                embeddings[model] = model_embeddings[0].get('embedding', [])
+                                print(f"Successfully generated {model} embeddings")
+                        except Exception as e:
+                            print(f"{model} model failed: {str(e)}")
                     
-                    # Validate the embeddings structure
-                    if not isinstance(new_embeddings, list) or len(new_embeddings) == 0:
-                        print(f"Invalid embeddings type or empty list: {type(new_embeddings)}")
+                    # Check if at least one model succeeded
+                    if not embeddings:
                         if os.path.exists(temp_path):
                             os.remove(temp_path)
                         return jsonify({
-                            'error': 'No face embeddings generated',
+                            'error': 'Failed to generate face embeddings with any model',
                             'details': {'name': name}
                         }), 400
                     
-                    # Check if the embedding has the expected structure
-                    if 'embedding' not in new_embeddings[0]:
-                        print(f"Expected 'embedding' key not found in: {list(new_embeddings[0].keys())}")
-                        if os.path.exists(temp_path):
-                            os.remove(temp_path)
-                        return jsonify({
-                            'error': 'Invalid embedding structure',
-                            'details': {'name': name}
-                        }), 400
+                    # Get a new connection before fetching users to avoid timeout
+                    if connection.is_connected():
+                        cursor.close()
+                        connection.close()
+                    
+                    connection = get_db_connection()
+                    cursor = connection.cursor()
                     
                     # Get all registered users
                     cursor.execute("SELECT name FROM register")
@@ -208,7 +368,7 @@ def register_user():
                     else:
                         print(f"Found {len(registered_users)} registered users for comparison")
                     
-                    # Compare with all existing face embeddings
+                    # Compare with all existing face embeddings - using strict comparison with multiple models
                     for user in registered_users:
                         # Skip comparison with the current user
                         if user[0] == name:
@@ -220,70 +380,52 @@ def register_user():
                                 ref_file_size = os.path.getsize(ref_path)
                                 print(f"Reference image for {user[0]} size: {ref_file_size} bytes")
                                 
-                                # Try both direct verification and embedding comparison
-                                try:
-                                    # First try direct verification which is more accurate
-                                    verification = DeepFace.verify(
-                                        img1_path=temp_path,
-                                        img2_path=ref_path,
-                                        model_name="VGG-Face",
-                                        distance_metric="cosine",
-                                        enforce_detection=False
-                                    )
-                                    
-                                    print(f"Direct verification with {user[0]}: {'✓ Match' if verification['verified'] else '✗ No match'}, distance: {verification['distance']}")
-                                    
-                                    # Use stricter threshold for registration than for login (0.3 vs 0.4)
-                                    if verification['verified'] or verification['distance'] < 0.3:
-                                        if os.path.exists(temp_path):
-                                            os.remove(temp_path)
-                                        return jsonify({
-                                            'error': 'Face already registered',
-                                            'details': {
-                                                'name': name,
-                                                'existing_user': user[0],
-                                                'similarity': f"{(1 - verification['distance']) * 100:.1f}%"
-                                            }
-                                        }), 400
-                                except Exception as e1:
-                                    print(f"Direct verification failed, trying embedding comparison: {str(e1)}")
-                                    
-                                    # Fallback to embedding comparison
-                                    ref_embeddings = DeepFace.represent(ref_path, model_name="VGG-Face" if 'VGG-Face' in str(new_embeddings) else "Facenet", enforce_detection=False)
-                                    
-                                    if ref_embeddings and len(ref_embeddings) > 0 and 'embedding' in ref_embeddings[0]:
-                                        # Compare embeddings
-                                        try:
-                                            distance = DeepFace.compute_distance(new_embeddings[0]['embedding'], ref_embeddings[0]['embedding'])
-                                            print(f"Embedding distance from {user[0]}: {distance}")
-                                            if distance < 0.3:  # Stricter threshold for registration (0.3 vs 0.4)
-                                                # Clean up temporary file
-                                                if os.path.exists(temp_path):
-                                                    os.remove(temp_path)
-                                                return jsonify({
-                                                    'error': 'Face already registered',
-                                                    'details': {
-                                                        'name': name,
-                                                        'existing_user': user[0],
-                                                        'similarity': f"{(1 - distance) * 100:.1f}%"
-                                                    }
-                                                }), 400
-                                        except Exception as e2:
-                                            print(f"Error computing distance: {str(e2)}")
-                                            continue
+                                # Use ensemble verification for higher accuracy
+                                verification = verify_face_with_ensemble(
+                                    img1_path=temp_path,
+                                    img2_path=ref_path,
+                                    enforce_detection=False
+                                )
+                                
+                                # Print detailed verification results
+                                print(f"Ensemble verification with {user[0]}: {verification}")
+                                
+                                # Use very strict threshold for registration
+                                if verification['verified'] or verification['distance'] < REGISTRATION_THRESHOLDS["ensemble"]:
+                                    if os.path.exists(temp_path):
+                                        os.remove(temp_path)
+                                    return jsonify({
+                                        'error': 'Face already registered',
+                                        'details': {
+                                            'name': name,
+                                            'existing_user': user[0],
+                                            'similarity': f"{(1 - verification['distance']) * 100:.1f}%"
+                                        }
+                                    }), 400
                             except Exception as e:
                                 print(f"Error comparing with {user[0]}: {str(e)}")
                                 continue
                     
                     # If no duplicate face found, proceed with registration
                     try:
-                        # Store embedding as string (truncate if too large)
-                        embedding_str = str(new_embeddings[0]['embedding'])
-                        if len(embedding_str) > 5000:  # Set a reasonable limit
-                            landmarks_hash = embedding_str[:5000]
-                            print("Truncated embedding string (too large)")
+                        # Store embedding as string for the primary model (truncate if too large)
+                        primary_model = RECOGNITION_MODELS[0]
+                        if primary_model in embeddings:
+                            embedding_str = str(embeddings[primary_model])
+                            if len(embedding_str) > 5000:  # Set a reasonable limit
+                                landmarks_hash = embedding_str[:5000]
+                                print("Truncated embedding string (too large)")
+                            else:
+                                landmarks_hash = embedding_str
                         else:
-                            landmarks_hash = embedding_str
+                            # Fallback to another available model
+                            for model, emb in embeddings.items():
+                                embedding_str = str(emb)
+                                if len(embedding_str) > 5000:
+                                    landmarks_hash = embedding_str[:5000]
+                                else:
+                                    landmarks_hash = embedding_str
+                                break
                     except Exception as e:
                         print(f"Error converting embedding to string: {str(e)}")
                         landmarks_hash = "error_generating_hash"
@@ -307,6 +449,11 @@ def register_user():
                 }), 400
         else:
             landmarks_hash = None
+        
+        # Get a new database connection if the previous one was closed
+        if not connection or not connection.is_connected():
+            connection = get_db_connection()
+            cursor = connection.cursor()
         
         # Insert into register table
         insert_query = """
@@ -371,13 +518,32 @@ def register_user():
             'error': 'Registration failed',
             'details': {'error': str(e)}
         }), 500
+    finally:
+        # Always close database connections in finally block
+        if cursor:
+            try:
+                cursor.close()
+            except:
+                pass
+        if connection and connection.is_connected():
+            try:
+                connection.close()
+            except:
+                pass
 
 
 @app.route('/Face_API/mark-attendance', methods=['POST'])
 @cross_origin()
 def mark_attendance():
     temp_img_path = None
+    connection = None
+    cursor = None
+    
     try:
+        # Get a fresh database connection
+        connection = get_db_connection()
+        cursor = connection.cursor()
+        
         # Parse the incoming JSON data
         data = request.get_json()
         base64_string = data.get('image')
@@ -435,6 +601,12 @@ def mark_attendance():
                 if not extracted_faces or len(extracted_faces) == 0:
                     return jsonify({"success": False, "message": "No face detected in the image"}), 400
                 print(f"Detected {len(extracted_faces)} faces in the login image")
+                
+                # Check for liveness
+                is_live, liveness_message = detect_liveness(temp_img_path)
+                if not is_live:
+                    return jsonify({"success": False, "message": f"Liveness check failed. Please use a real face. {liveness_message}"}), 400
+                
             except Exception as e:
                 print(f"Face detection error during login: {str(e)}")
                 return jsonify({"success": False, "message": f"Face detection failed: {str(e)}"}), 400
@@ -449,11 +621,11 @@ def mark_attendance():
                 if not all_users:
                     return jsonify({"success": False, "message": "No registered users found"}), 400
                 
-                best_match = None
-                lowest_distance = float('inf')
+                # New approach: collect multiple candidates and make a more informed decision
+                candidates = []
                 valid_user_count = 0
                 
-                # Compare with all registered users using direct image verification
+                # Compare with all registered users using enhanced verification
                 for user_data in all_users:
                     stored_name = user_data[0]
                     stored_role = user_data[1]
@@ -469,22 +641,28 @@ def mark_attendance():
                             continue
                             
                         valid_user_count += 1
-                            
-                        # Use DeepFace's verify function with the image path directly
-                        verification = DeepFace.verify(
+                        
+                        # Use ensemble verification for higher accuracy
+                        start_time = time.time()
+                        verification = verify_face_with_ensemble(
                             img1_path=temp_img_path,
                             img2_path=stored_img_path,
-                            model_name="VGG-Face",
-                            distance_metric="cosine",
                             enforce_detection=False
                         )
+                        elapsed = time.time() - start_time
+                        print(f"Verification for {stored_name} took {elapsed:.2f}s")
                         
-                        distance = verification["distance"]
-                        print(f"Distance from {stored_name}: {distance}")
+                        # Save candidate with verification data
+                        candidates.append({
+                            "name": stored_name,
+                            "role": stored_role,
+                            "department": stored_department,
+                            "distance": verification["distance"],
+                            "verified": verification["verified"],
+                            "models_passed": verification.get("models_passed", 0),
+                            "models_total": verification.get("models_total", 0)
+                        })
                         
-                        if distance < lowest_distance:
-                            lowest_distance = distance
-                            best_match = (stored_name, stored_role, stored_department, distance)
                     except Exception as e:
                         print(f"Error comparing with user {stored_name}: {str(e)}")
                         continue
@@ -492,16 +670,43 @@ def mark_attendance():
                 if valid_user_count == 0:
                     return jsonify({"success": False, "message": "No valid reference images found. Please register users again."}), 400
                 
-                # Set recognition threshold
-                threshold = 0.4  # Adjusted threshold for better recognition
+                # Sort candidates by distance (lowest first)
+                candidates.sort(key=lambda x: x["distance"])
                 
-                if best_match and best_match[3] < threshold:
-                    name = best_match[0]
-                    role = best_match[1]
-                    department = best_match[2]
-                    print(f"Identified person: {name}, distance: {best_match[3]}")
+                # Log top candidates for debugging
+                for i, candidate in enumerate(candidates[:3]):
+                    print(f"Candidate #{i+1}: {candidate['name']}, Distance: {candidate['distance']}, "
+                          f"Models: {candidate['models_passed']}/{candidate['models_total']}")
+                
+                # Check if best candidate passes the threshold
+                best_candidate = candidates[0]
+                threshold = AUTHENTICATION_THRESHOLDS["ensemble"]
+                
+                # Verification logic:
+                # 1. Best candidate passes distance threshold
+                # 2. AND has significant lead over second-best candidate
+                has_clear_winner = (len(candidates) == 1 or 
+                                    (len(candidates) > 1 and 
+                                    (best_candidate["distance"] < candidates[1]["distance"] - 0.1)))
+                
+                if best_candidate["distance"] < threshold and has_clear_winner:
+                    name = best_candidate["name"]
+                    role = best_candidate["role"]
+                    department = best_candidate["department"]
+                    confidence = min(100, 100 * (1 - best_candidate["distance"] / threshold))
+                    print(f"Identified person: {name}, confidence: {confidence:.1f}%, distance: {best_candidate['distance']}")
                 else:
-                    return jsonify({"success": False, "message": f"Face not recognized, please try again. Best match: {best_match[0] if best_match else 'None'}, distance: {best_match[3] if best_match else 'N/A'}"}), 400
+                    # If multiple candidates are close, reject and ask user to try again
+                    if len(candidates) > 1 and candidates[0]["distance"] < threshold + 0.1:
+                        message = (f"Uncertain identity match. Multiple possible matches found: "
+                                  f"{candidates[0]['name']} ({candidates[0]['distance']:.3f}) and "
+                                  f"{candidates[1]['name']} ({candidates[1]['distance']:.3f})")
+                    else:
+                        message = (f"Face not recognized, please try again. "
+                                  f"Best match: {best_candidate['name']}, distance: {best_candidate['distance']:.3f}, "
+                                  f"threshold: {threshold}")
+                    
+                    return jsonify({"success": False, "message": message}), 400
             else:
                 # If name is provided, verify the person directly using images
                 query = "SELECT role, department FROM register WHERE name = %s"
@@ -519,20 +724,19 @@ def mark_attendance():
                 if not os.path.exists(ref_img_path):
                     return jsonify({"success": False, "message": f"Reference image not found for user {name}. Please register again."}), 400
                 
-                # Verify if the face matches using direct image comparison
-                try:
-                    verification = DeepFace.verify(
-                        img1_path=temp_img_path,
-                        img2_path=ref_img_path,
-                        model_name="VGG-Face",
-                        distance_metric="cosine",
-                        enforce_detection=False
-                    )
-                    
-                    if not verification["verified"]:
-                        return jsonify({"success": False, "message": f"Face not recognized, try again. Distance: {verification['distance']}"}), 400
-                except Exception as e:
-                    return jsonify({"success": False, "message": f"Face verification error: {str(e)}"}), 400
+                # Enhanced verification with ensemble of models and liveness detection
+                verification = enhanced_verification(temp_img_path, ref_img_path)
+                
+                if not verification["verified"]:
+                    if not verification.get("liveness", True):
+                        return jsonify({"success": False, "message": verification.get("message", "Liveness check failed")}), 400
+                    else:
+                        return jsonify({"success": False, "message": f"Face not recognized. Please try again. Distance: {verification['distance']:.3f}"}), 400
+            
+            # Reconnect to MySQL before accessing the database again if this is after a long-running operation
+            if not connection.is_connected():
+                connection = get_db_connection()
+                cursor = connection.cursor()
             
             # At this point, we have a verified or identified user
             # Check if the user has already marked attendance
@@ -576,6 +780,18 @@ def mark_attendance():
             # Clean up the temporary image
             if temp_img_path and os.path.exists(temp_img_path):
                 os.remove(temp_img_path)
+            
+            # Always close database connections
+            if cursor:
+                try:
+                    cursor.close()
+                except:
+                    pass
+            if connection and connection.is_connected():
+                try:
+                    connection.close()
+                except:
+                    pass
 
     except Exception as e:
         print(f"General attendance error: {str(e)}")

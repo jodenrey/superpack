@@ -158,6 +158,12 @@ if ($stmt) {
                                 <div class="info">Check Attendance</div>
                             </div>
                         </div>
+                        <div class="option" onclick="window.location.href='attendance_check.php'" style="cursor: pointer;">
+                            <div class="overview-card purple">
+                                <div class="button-widget-text">Click Here</div>
+                                <div class="info">Leave Requests</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>  

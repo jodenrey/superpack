@@ -21,6 +21,30 @@ if ($conn->connect_error) {
 // Initialize variables
 $tasksTable = 'employee_records';
 
+// AJAX handler to fetch employee data by ID
+if (isset($_GET['action']) && $_GET['action'] === 'get_employee_data' && isset($_GET['id'])) {
+    $id = $_GET['id'];
+    
+    // Prepare and execute query to get employee data
+    $stmt = $conn->prepare("SELECT * FROM $tasksTable WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows > 0) {
+        $employeeData = $result->fetch_assoc();
+        // Return as JSON
+        header('Content-Type: application/json');
+        echo json_encode($employeeData);
+    } else {
+        // Return error
+        header('HTTP/1.1 404 Not Found');
+        echo json_encode(['error' => 'Employee not found']);
+    }
+    
+    exit; // Stop further execution
+}
+
 // Initialize search ID
 $searchId = isset($_GET['search_id']) ? $_GET['search_id'] : '';
 // Base query to retrieve tasks from the database
@@ -209,8 +233,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <form method="POST" id="deleteForm" style="display:inline;">
                                         <button type="submit" name="deleteTask" class="btn btn-danger" disabled>Del</button>
                                     </form>
-                                    <button class="btn btn-primary" name="editTaskMod" data-toggle="modal" data-target="#editTaskModal" disabled data-id="<?php echo $row['id']; ?>">Edit</button>
-                                    <!-- <button class="btn btn-secondary" onclick="window.print()">Print</button> -->
+                                    <button class="btn btn-primary" name="editTaskMod" data-toggle="modal" data-target="#editTaskModal" disabled>Edit</button>
+                                    <button class="btn btn-secondary" onclick="printEmployeeList()">Print</button>
                                     
                                     <div>
                                         <form method="get" action="task_management.php">
@@ -272,7 +296,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <span aria-hidden="true">&times;</span>
                                 </button>
                         </div>
-                        <form method="POST">
+                        <form method="POST" enctype="multipart/form-data">
                             <div class="modal-body">
                                 <div class="form-group">
                                     <label for="name">Name</label>
@@ -391,6 +415,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 </div>
             </div>
+        </div>
+        <!-- Add Print Options Modal -->
+        <div class="modal fade" id="printOptionsModal" tabindex="-1" role="dialog" aria-labelledby="printOptionsModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="printOptionsModalLabel">Print Options</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Select columns to include in the printout:</p>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="1" id="printCol1" checked>
+                            <label class="form-check-label" for="printCol1">
+                                Employee No
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="2" id="printCol2" checked>
+                            <label class="form-check-label" for="printCol2">
+                                Name
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="3" id="printCol3" checked>
+                            <label class="form-check-label" for="printCol3">
+                                Position
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="4" id="printCol4" checked>
+                            <label class="form-check-label" for="printCol4">
+                                Shift
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="5" id="printCol5" checked>
+                            <label class="form-check-label" for="printCol5">
+                                Salary
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="6" id="printCol6" checked>
+                            <label class="form-check-label" for="printCol6">
+                                Start Date
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="7" id="printCol7" checked>
+                            <label class="form-check-label" for="printCol7">
+                                Status
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="executePrint()">Print</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </body>
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
@@ -408,32 +495,187 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         logoName.textContent = 'Personnel Records';
 
         // Function to update selected count display
-function updateSelectedCount() {
-    var selectedCount = document.querySelectorAll('input[name="task_checkbox[]"]:checked').length;
-    document.getElementById('selected-count').textContent = selectedCount;
+        function updateSelectedCount() {
+            var selectedCount = document.querySelectorAll('input[name="task_checkbox[]"]:checked').length;
+            document.getElementById('selected-count').textContent = selectedCount;
 
-    // Toggle buttons based on the number of selected checkboxes
-    toggleButtons(selectedCount);
-}
+            // Toggle buttons based on the number of selected checkboxes
+            toggleButtons(selectedCount);
+        }
 
-// Function to toggle the delete and edit buttons
-function toggleButtons(selectedCount) {
-    // Get the delete and edit buttons
-    var deleteButton = document.querySelector('button[name="deleteTask"]');
-    var editButton = document.querySelector('button[name="editTaskMod"]');
+        // Function to toggle the delete and edit buttons
+        function toggleButtons(selectedCount) {
+            // Get the delete and edit buttons
+            var deleteButton = document.querySelector('button[name="deleteTask"]');
+            var editButton = document.querySelector('button[name="editTaskMod"]');
 
-    // Enable delete button if at least one checkbox is selected
-    deleteButton.disabled = selectedCount === 0;
+            // Enable delete button if at least one checkbox is selected
+            deleteButton.disabled = selectedCount === 0;
 
-    // Enable edit button only if exactly one checkbox is selected
-    editButton.disabled = selectedCount !== 1;
-}
+            // Enable edit button only if exactly one checkbox is selected
+            editButton.disabled = selectedCount !== 1;
 
-// Attach event listeners to all checkboxes
-document.querySelectorAll('input[name="task_checkbox[]"]').forEach(function(checkbox) {
-    checkbox.addEventListener('change', function() {
-        updateSelectedCount();
-    });
-});
+            // If exactly one checkbox is selected, save the row data for editing
+            if (selectedCount === 1) {
+                var checkedBox = document.querySelector('input[name="task_checkbox[]"]:checked');
+                if (checkedBox) {
+                    var row = checkedBox.closest('tr');
+                    // Store data for edit form
+                    storeRowDataForEdit(row);
+                }
+            }
+        }
+
+        // Store the row data for edit form
+        function storeRowDataForEdit(row) {
+            // Get the employee ID
+            var id = row.cells[1].textContent;
+            
+            // Store the ID in the edit button's data attribute
+            document.querySelector('button[name="editTaskMod"]').setAttribute('data-id', id);
+        }
+
+        // Populate edit form with employee data when edit button is clicked
+        document.querySelector('button[name="editTaskMod"]').addEventListener('click', function() {
+            var employeeId = this.getAttribute('data-id');
+            
+            if (employeeId) {
+                // Make AJAX call to get complete employee data
+                fetch('employee_list.php?action=get_employee_data&id=' + employeeId)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        // Populate the edit form with data
+                        document.getElementById('editTaskId').value = data.id;
+                        document.querySelector('input[name="id"]').value = data.id;
+                        document.getElementById('editTaskName').value = data.name;
+                        document.getElementById('editTaskPosition').value = data.position;
+                        document.getElementById('editTaskShift').value = data.shift;
+                        document.getElementById('editTaskSalary').value = data.salary;
+                        document.getElementById('editTaskAddress').value = data.address;
+                        document.getElementById('editTaskPhone').value = data.phone_number;
+                        document.getElementById('editTaskAge').value = data.age;
+                        document.getElementById('editTaskEmail').value = data.email;
+                        
+                        // For the date field, ensure it's in the format yyyy-mm-dd
+                        document.getElementById('editTaskDate').value = formatDateForInput(data.start_date);
+                    })
+                    .catch(error => {
+                        console.error('Error fetching employee data:', error);
+                        alert('Failed to load employee data. Please try again.');
+                    });
+            }
+        });
+        
+        // Format date from display format to input format
+        function formatDateForInput(dateStr) {
+            try {
+                var parts = dateStr.split('-');
+                // If already in yyyy-mm-dd format
+                if (parts.length === 3 && parts[0].length === 4) {
+                    return dateStr;
+                }
+                
+                // If in another format like mm/dd/yyyy
+                parts = dateStr.split('/');
+                if (parts.length === 3) {
+                    // Assuming mm/dd/yyyy format
+                    return parts[2] + '-' + parts[0].padStart(2, '0') + '-' + parts[1].padStart(2, '0');
+                }
+                
+                // If it's a date object or can be parsed as one
+                var date = new Date(dateStr);
+                if (!isNaN(date.getTime())) {
+                    return date.getFullYear() + '-' + 
+                           String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+                           String(date.getDate()).padStart(2, '0');
+                }
+            } catch (e) {
+                console.error("Error formatting date:", e);
+            }
+            
+            // If all else fails, return the original
+            return dateStr;
+        }
+        
+        // Print employee list
+        function printEmployeeList() {
+            // Show print options modal
+            $('#printOptionsModal').modal('show');
+        }
+        
+        // Function to execute printing with selected options
+        function executePrint() {
+            // Get selected columns to print
+            var columnsToInclude = [];
+            $('#printOptionsModal input[type="checkbox"]:checked').each(function() {
+                columnsToInclude.push(parseInt($(this).val()));
+            });
+            
+            // If no columns selected, include all columns except checkbox column
+            if (columnsToInclude.length === 0) {
+                for (var i = 1; i < 8; i++) { // Columns 1-7 (skipping checkbox at 0)
+                    columnsToInclude.push(i);
+                }
+            }
+            
+            // Create a new table with only the selected columns
+            var table = document.querySelector('.table').cloneNode(true);
+            var rows = Array.from(table.querySelectorAll('tr'));
+            
+            rows.forEach(function(row) {
+                var cells = Array.from(row.cells);
+                // Remove cells that aren't in our columnsToInclude list, starting from the end
+                for (var i = cells.length - 1; i >= 0; i--) {
+                    if (!columnsToInclude.includes(i) && i !== 0) { // Always skip first column (checkbox)
+                        cells[i].remove();
+                    }
+                }
+                // Always remove checkbox column
+                if (cells.length > 0 && row.cells[0]) {
+                    row.cells[0].style.display = 'none';
+                }
+            });
+            
+            // Create a new window with just the filtered table
+            var printWindow = window.open('', '_blank');
+            printWindow.document.write('<html><head><title>Employee List</title>');
+            printWindow.document.write('<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">');
+            printWindow.document.write('<style>');
+            printWindow.document.write('body { padding: 20px; }');
+            printWindow.document.write('.checkbox-col, input[type="checkbox"] { display: none; }'); // Hide checkboxes
+            printWindow.document.write('</style>');
+            printWindow.document.write('</head><body>');
+            printWindow.document.write('<h2 class="text-center mb-4">Employee List</h2>');
+            printWindow.document.write('<div class="table-container">');
+            printWindow.document.write(table.outerHTML);
+            printWindow.document.write('</div>');
+            printWindow.document.write('</body></html>');
+            
+            printWindow.document.close();
+            printWindow.focus();
+            
+            // Close the modal
+            $('#printOptionsModal').modal('hide');
+            
+            // Print after a short delay to allow the window to fully render
+            setTimeout(function() {
+                printWindow.print();
+                printWindow.close();
+            }, 500);
+            
+            return true;
+        }
+
+        // Attach event listeners to all checkboxes
+        document.querySelectorAll('input[name="task_checkbox[]"]').forEach(function(checkbox) {
+            checkbox.addEventListener('change', function() {
+                updateSelectedCount();
+            });
+        });
     </script>
 </html>

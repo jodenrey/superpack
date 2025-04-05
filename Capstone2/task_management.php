@@ -193,33 +193,60 @@ $startDateEnd = isset($_GET['start_date_end']) ? $_GET['start_date_end'] : '';
 $priority = isset($_GET['priority']) ? $_GET['priority'] : '';
 $duration = isset($_GET['duration']) ? $_GET['duration'] : '';
 
+// Get current user info
+$username = isset($_SESSION['username']) ? $_SESSION['username'] : '';
+$role = isset($_SESSION['role']) ? $_SESSION['role'] : '';
+
 // Build the query with filters and sorting
 $query = "SELECT * FROM $tasksTable WHERE 1=1"; // Always true condition for appending WHERE clauses
+
+// Filter by current user for non-admin roles
+if ($role !== 'Admin' && !empty($username)) {
+    $query .= " AND owner = ?";
+    $bindTypes = 's';
+    $bindValues = [$username];
+}
 
 // Append filters to the query if the user provided values
 if (!empty($assigned)) {
     $query .= " AND owner = ?";
+    $bindTypes .= 's';
+    $bindValues[] = $assigned;
 }
 if (!empty($status)) {
     $query .= " AND status = ?";
+    $bindTypes .= 's';
+    $bindValues[] = $status;
 }
 if (!empty($dueDateStart)) {
     $query .= " AND due_date >= ?";
+    $bindTypes .= 's';
+    $bindValues[] = $dueDateStart;
 }
 if (!empty($dueDateEnd)) {
     $query .= " AND due_date <= ?";
+    $bindTypes .= 's';
+    $bindValues[] = $dueDateEnd;
 }
 if (!empty($startDateStart)) {
     $query .= " AND start_date >= ?";
+    $bindTypes .= 's';
+    $bindValues[] = $startDateStart;
 }
 if (!empty($startDateEnd)) {
     $query .= " AND start_date <= ?";
+    $bindTypes .= 's';
+    $bindValues[] = $startDateEnd;
 }
 if (!empty($priority)) {
     $query .= " AND priority = ?";
+    $bindTypes .= 's';
+    $bindValues[] = $priority;
 }
 if (!empty($duration)) {
     $query .= " AND duration = ?";
+    $bindTypes .= 'i';
+    $bindValues[] = $duration;
 }
 
 // Append sorting
@@ -241,43 +268,6 @@ try {
     die("Error: " . $e->getMessage());
 }
 
-// Bind parameters
-$bindTypes = '';
-$bindValues = [];
-
-if (!empty($assigned)) {
-    $bindTypes .= 's';
-    $bindValues[] = $assigned;
-}
-if (!empty($status)) {
-    $bindTypes .= 's';
-    $bindValues[] = $status;
-}
-if (!empty($dueDateStart)) {
-    $bindTypes .= 's';
-    $bindValues[] = $dueDateStart;
-}
-if (!empty($dueDateEnd)) {
-    $bindTypes .= 's';
-    $bindValues[] = $dueDateEnd;
-}
-if (!empty($startDateStart)) {
-    $bindTypes .= 's';
-    $bindValues[] = $startDateStart;
-}
-if (!empty($startDateEnd)) {
-    $bindTypes .= 's';
-    $bindValues[] = $startDateEnd;
-}
-if (!empty($priority)) {
-    $bindTypes .= 's';
-    $bindValues[] = $priority;
-}
-if (!empty($duration)) {
-    $bindTypes .= 'i';
-    $bindValues[] = $duration;
-}
-
 // Bind the parameters if there are any
 if (!empty($bindValues)) {
     $stmt->bind_param($bindTypes, ...$bindValues);
@@ -287,6 +277,27 @@ if (!empty($bindValues)) {
 $stmt->execute();
 $result = $stmt->get_result();
 $tasks = $result->fetch_all(MYSQLI_ASSOC);
+
+// Get a list of all employees for the dropdown in the add task form
+$employeeQuery = "SELECT name FROM employee_records WHERE status = 'Active'";
+$employeeResult = $conn->query($employeeQuery);
+$employees = [];
+if ($employeeResult && $employeeResult->num_rows > 0) {
+    while ($employeeRow = $employeeResult->fetch_assoc()) {
+        $employees[] = $employeeRow['name'];
+    }
+}
+
+// Filter tasks for non-admin users to only show their assigned tasks
+$username = isset($_SESSION['username']) ? $_SESSION['username'] : '';
+$role = isset($_SESSION['role']) ? $_SESSION['role'] : '';
+
+// Modify the query to filter by assigned owner if not admin
+if ($role !== 'Admin' && !empty($username)) {
+    $query .= " AND owner = ?";
+    $bindTypes .= 's';
+    $bindValues[] = $username;
+}
 ?>
 
 <!DOCTYPE html>
@@ -322,8 +333,10 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                                 <button class="btn btn-primary" type="submit" style="border-radius: 0; border: 3px solid #131313;">Search</button>
                             </div>
                         </div>
-                        <!-- Add Task button aligned to the right -->
+                        <!-- Add Task button aligned to the right - only visible to admins -->
+                        <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'Admin'): ?>
                         <button class="btn btn-primary mb-3" type="button" data-toggle="modal" data-target="#addTaskModal" style="border-radius: 0 10px 10px 0 ; border: 3px solid #131313;">Add Task</button>
+                        <?php endif; ?>
                     </form>
                 </div>
     
@@ -332,17 +345,23 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                 <div class="container-table">
                     <div class="tool-bar">
                         <div class="d-flex justify-content-between align-items-center mb-3" >
+                            <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'Admin'): ?>
                             <div style="color: #FFFAFA;">
                                 <span id="selected-count">0</span> items selected
                             </div>
+                            <?php else: ?>
+                            <div></div>
+                            <?php endif; ?>
                             
                             <div class="d-flex align-items-center" style="gap:10px;">
                                 
-                                <!-- Start the form for deletion -->
+                                <!-- Start the form for deletion - only visible to admins -->
+                                <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'Admin'): ?>
                                 <form method="POST" id="deleteForm" style="display:inline;">
                                     <button type="submit" name="deleteTask" class="btn btn-danger" disabled>Del</button>
                                 </form>
                                 <button class="btn btn-primary" name="editTaskMod" data-toggle="modal" data-target="#editTaskModal" disabled data-id="<?php echo $task['id']; ?>">Edit</button>
+                                <?php endif; ?>
                                 <!-- <button class="btn btn-secondary" onclick="window.print()">Print</button> -->
                                 
                                 <div>
@@ -362,7 +381,9 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                         <table class="table table-bordered table-striped">
                             <thead>
                                 <tr> <!-- style="display: block; width: 100%; height: 100%; text-decoration: none; color: inherit;" -->
+                                    <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'Admin'): ?>
                                     <th class="checkbox-col"></th> <!-- Empty column for the checkbox -->
+                                    <?php endif; ?>
                                     <th><a class="sort-link" href="?department=<?php echo urlencode($department); ?>&sort=id&dir=<?php echo ($sort === 'id' && $direction === 'ASC') ? 'DESC' : 'ASC'; ?>" style="text-decoration:none;">ID</a></th>
                                     <th><a class="sort-link" href="?department=<?php echo urlencode($department); ?>&sort=task&dir=<?php echo ($sort === 'task' && $direction === 'ASC') ? 'DESC' : 'ASC'; ?>" style="text-decoration:none;">Task</a></th>
                                     <th><a class="sort-link" href="?department=<?php echo urlencode($department); ?>&sort=owner&dir=<?php echo ($sort === 'owner' && $direction === 'ASC') ? 'DESC' : 'ASC'; ?>" style="text-decoration:none;">Assigned</a></th>
@@ -376,6 +397,7 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                             </thead>
 
                             <tbody>
+                                <?php if(count($tasks) > 0): ?>
                                 <?php foreach ($tasks as $task): ?>
                                 <?php
                                 // Determine classes for completion and status
@@ -396,10 +418,12 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                                 }
                                 ?>
                                 <tr>
+                                    <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'Admin'): ?>
                                     <td>
                                         <!-- Make sure the checkbox is inside the form -->
                                         <input type="checkbox" id="chkbx" name="task_checkbox[]" form="deleteForm" value="<?php echo $task['id']; ?>" onclick="updateSelectedCount(this)">
                                     </td> <!-- Checkbox before ID -->
+                                    <?php endif; ?>
                                     <td><?php echo $task['id']; ?></td>
                                     <td><?php echo $task['task']; ?></td>
                                     <td><?php echo $task['owner']; ?></td> <!-- Updated to 'Assigned' -->
@@ -414,6 +438,17 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                                     <td><?php echo $task['duration']; ?> days</td>
                                 </tr>
                                 <?php endforeach; ?>
+                                <?php else: ?>
+                                <tr>
+                                    <td colspan="<?php echo (isset($_SESSION['role']) && $_SESSION['role'] === 'Admin') ? '10' : '9'; ?>" class="text-center">
+                                        <?php if ($role === 'Admin'): ?>
+                                            No tasks found. Add a new task to get started.
+                                        <?php else: ?>
+                                            You don't have any assigned tasks yet.
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                                <?php endif; ?>
                             </tbody>
                         </table>
                     </div>
@@ -442,7 +477,16 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                                     <div class="modal-left">
                                         <div class="form-group">
                                             <label for="owner">Assigned To</label>
-                                            <input type="text" class="form-control" id="owner" name="owner" required>
+                                            <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'Admin'): ?>
+                                            <select class="form-control" id="owner" name="owner" required>
+                                                <option value="">Select Employee</option>
+                                                <?php foreach ($employees as $employee): ?>
+                                                <option value="<?php echo htmlspecialchars($employee); ?>"><?php echo htmlspecialchars($employee); ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                            <?php else: ?>
+                                            <input type="text" class="form-control" id="owner" name="owner" value="<?php echo htmlspecialchars($username); ?>" readonly>
+                                            <?php endif; ?>
                                         </div>
 
                                         <div class="form-group">
@@ -512,7 +556,16 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                                     <div class="modal-left">
                                         <div class="form-group">
                                             <label for="edit_owner">Assigned To</label>
-                                            <input type="text" class="form-control" id="edit_owner" name="owner" required>
+                                            <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'Admin'): ?>
+                                            <select class="form-control" id="edit_owner" name="owner" required>
+                                                <option value="">Select Employee</option>
+                                                <?php foreach ($employees as $employee): ?>
+                                                <option value="<?php echo htmlspecialchars($employee); ?>"><?php echo htmlspecialchars($employee); ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                            <?php else: ?>
+                                            <input type="text" class="form-control" id="edit_owner" name="owner" value="<?php echo htmlspecialchars($username); ?>" readonly>
+                                            <?php endif; ?>
                                         </div>
 
                                         <div class="form-group">
@@ -574,16 +627,33 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                 var modal = $(this);
                 var row = button.closest('tr');
                 
+                // Calculate offset based on whether there's an admin checkbox
+                var isAdmin = <?php echo (isset($_SESSION['role']) && $_SESSION['role'] === 'Admin') ? 'true' : 'false'; ?>;
+                var offset = isAdmin ? 1 : 0;
+                
                 // Populate modal with task details
                 modal.find('#edit_id').val(taskId); // Hidden input for task ID
-                modal.find('#edit_task').val(row.find('td:eq(1)').text()); // Task Name
-                modal.find('#edit_owner').val(row.find('td:eq(2)').text()); // Owner
-                modal.find('#edit_status').val(row.find('td:eq(3)').text()); // Status
-                modal.find('#edit_start_date').val(row.find('td:eq(4)').text()); // Start Date
-                modal.find('#edit_due_date').val(row.find('td:eq(5)').text()); // Due Date
+                modal.find('#edit_task').val(row.find('td:eq(' + (1 + offset) + ')').text()); // Task Name
+                
+                // Set the owner/assigned dropdown
+                var ownerText = row.find('td:eq(' + (2 + offset) + ')').text(); // Owner
+                if (modal.find('#edit_owner').is('select')) {
+                    // Find the option with the matching text and select it
+                    modal.find('#edit_owner option').each(function() {
+                        if ($(this).text() === ownerText) {
+                            $(this).prop('selected', true);
+                        }
+                    });
+                } else {
+                    modal.find('#edit_owner').val(ownerText);
+                }
+                
+                modal.find('#edit_status').val(row.find('td:eq(' + (3 + offset) + ')').text()); // Status
+                modal.find('#edit_start_date').val(row.find('td:eq(' + (4 + offset) + ')').text()); // Start Date
+                modal.find('#edit_due_date').val(row.find('td:eq(' + (5 + offset) + ')').text()); // Due Date
                 
                 // Get the completion percentage safely
-                var completionBar = row.find('td:eq(6)').find('.completion-bar');
+                var completionBar = row.find('td:eq(' + (6 + offset) + ')').find('.completion-bar');
                 var completionValue = 0; // Default value if no completion bar is found
                 
                 if (completionBar.length > 0 && completionBar.attr('style')) {
@@ -595,8 +665,8 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                 
                 modal.find('#edit_completion').val(completionValue); // Set completion percentage
                 
-                modal.find('#edit_priority').val(row.find('td:eq(7)').text()); // Priority
-                modal.find('#edit_duration').val(row.find('td:eq(8)').text().split(' ')[0]); // Duration
+                modal.find('#edit_priority').val(row.find('td:eq(' + (7 + offset) + ')').text()); // Priority
+                modal.find('#edit_duration').val(row.find('td:eq(' + (8 + offset) + ')').text().split(' ')[0]); // Duration
             });
 
 

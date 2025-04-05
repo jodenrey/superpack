@@ -29,7 +29,8 @@ if ($table_result->num_rows == 0) {
     )";
     
     if (!$conn->query($create_table)) {
-        die("Error creating table: " . $conn->error);
+        displayError("Error creating table: " . $conn->error);
+        exit;
     }
 }
 
@@ -48,10 +49,7 @@ $result = $stmt->get_result();
 
 if ($result->num_rows > 0) {
     // Username already exists
-    echo "<script>
-        alert('Username already exists. Please choose a different username.');
-        window.location.href = 'register.php';
-    </script>";
+    displayError("Username already exists. Please choose a different username.");
 } else {
     // Start a transaction to ensure all operations complete together
     $conn->begin_transaction();
@@ -122,23 +120,196 @@ if ($result->num_rows > 0) {
         $conn->commit();
         
         // Registration successful
-        echo "<script>
-            alert('Registration successful! You can now log in with your username and password.');
-            window.location.href = 'login.php';
-        </script>";
+        displaySuccess("Registration successful! You can now log in with your username and password.");
     }
     catch (Exception $e) {
         // An error occurred, rollback the transaction
         $conn->rollback();
         
         // Registration failed
-        echo "<script>
-            alert('Registration failed: " . $e->getMessage() . "');
-            window.location.href = 'register.php';
-        </script>";
+        displayError("Registration failed: " . $e->getMessage());
     }
 }
 
 $stmt->close();
 $conn->close();
+
+// Function to display success message
+function displaySuccess($message) {
+    echo "<!DOCTYPE html>
+    <html lang='en'>
+    <head>
+        <meta charset='UTF-8'>
+        <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+        <title>Registration Success</title>
+        <link href='https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap' rel='stylesheet'>
+        <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'>
+        <style>
+            body {
+                font-family: 'Poppins', sans-serif;
+                background: linear-gradient(135deg, #3a7bd5, #00d2ff);
+                margin: 0;
+                padding: 0;
+                height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                -webkit-font-smoothing: antialiased;
+            }
+            .success-container {
+                background-color: white;
+                border-radius: 15px;
+                box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+                padding: 40px;
+                text-align: center;
+                max-width: 500px;
+                width: 90%;
+            }
+            .icon {
+                font-size: 64px;
+                color: #64A651;
+                margin-bottom: 20px;
+            }
+            h2 {
+                color: #333;
+                margin-top: 0;
+                font-weight: 600;
+            }
+            p {
+                color: #555;
+                margin-bottom: 30px;
+                font-size: 16px;
+                line-height: 1.6;
+            }
+            .btn {
+                display: inline-block;
+                padding: 12px 30px;
+                background: linear-gradient(135deg, #64A651, #90EE90);
+                color: white;
+                border-radius: 8px;
+                text-decoration: none;
+                font-weight: 500;
+                transition: all 0.3s ease;
+                border: none;
+                cursor: pointer;
+                font-size: 16px;
+            }
+            .btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            }
+            .countdown {
+                font-size: 14px;
+                color: #777;
+                margin-top: 20px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class='success-container'>
+            <div class='icon'><i class='fas fa-check-circle'></i></div>
+            <h2>Registration Successful!</h2>
+            <p>" . $message . "</p>
+            <a href='login.php' class='btn'>Go to Login</a>
+            <div class='countdown'>Redirecting in <span id='timer'>5</span> seconds...</div>
+        </div>
+        <script>
+            // Countdown timer
+            let seconds = 5;
+            const countdown = setInterval(function() {
+                seconds--;
+                document.getElementById('timer').textContent = seconds;
+                if (seconds <= 0) {
+                    clearInterval(countdown);
+                    window.location.href = 'login.php';
+                }
+            }, 1000);
+        </script>
+    </body>
+    </html>";
+}
+
+// Function to display error message
+function displayError($message) {
+    echo "<!DOCTYPE html>
+    <html lang='en'>
+    <head>
+        <meta charset='UTF-8'>
+        <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+        <title>Registration Error</title>
+        <link href='https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap' rel='stylesheet'>
+        <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'>
+        <style>
+            body {
+                font-family: 'Poppins', sans-serif;
+                background: linear-gradient(135deg, #3a7bd5, #00d2ff);
+                margin: 0;
+                padding: 0;
+                height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                -webkit-font-smoothing: antialiased;
+            }
+            .error-container {
+                background-color: white;
+                border-radius: 15px;
+                box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+                padding: 40px;
+                text-align: center;
+                max-width: 500px;
+                width: 90%;
+            }
+            .icon {
+                font-size: 64px;
+                color: #FF5E62;
+                margin-bottom: 20px;
+            }
+            h2 {
+                color: #e74c3c;
+                margin-top: 0;
+                font-weight: 600;
+            }
+            p {
+                color: #555;
+                margin-bottom: 30px;
+                font-size: 16px;
+                line-height: 1.6;
+            }
+            .btn {
+                display: inline-block;
+                padding: 12px 30px;
+                margin: 0 8px;
+                border-radius: 8px;
+                text-decoration: none;
+                font-weight: 500;
+                transition: all 0.3s ease;
+                cursor: pointer;
+            }
+            .btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            }
+            .btn-primary {
+                background: linear-gradient(135deg, #36D1DC, #5B86E5);
+                color: white;
+            }
+            .btn-secondary {
+                background-color: #f8f9fa;
+                color: #333;
+                border: 1px solid #ddd;
+            }
+        </style>
+    </head>
+    <body>
+        <div class='error-container'>
+            <div class='icon'><i class='fas fa-exclamation-circle'></i></div>
+            <h2>Registration Failed</h2>
+            <p>" . $message . "</p>
+            <a href='register.php' class='btn btn-primary'>Try Again</a>
+            <a href='login.php' class='btn btn-secondary'>Back to Login</a>
+        </div>
+    </body>
+    </html>";
+}
 ?>

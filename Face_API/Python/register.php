@@ -3,282 +3,389 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>New User Registration</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <title>SuperPack Enterprise - Register</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Reset margins and paddings */
+        /* Modern CSS Reset and Base Styles */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        
         html, body {
             margin: 0;
             padding: 0;
             height: 100%;
             width: 100%;
+            font-family: 'Poppins', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            background-color: #f8f9fa;
         }
+        
+        /* Main container with gradient background */
         .container-all {
-            height: 100vh;
-            width: 100vw;
-            background: #6f9947 ;
-            display: flex; /* Add flexbox to center content */
-            justify-content: center; /* Center horizontally */
-            align-items: center; /* Center vertically */
-        }
-
-        .left-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: auto;
-        }
-
-        .right-container {
+            min-height: 100vh;
+            width: 100%;
+            background: linear-gradient(135deg, #3a7bd5, #00d2ff);
             display: flex;
             flex-direction: column;
             justify-content: center;
-            align-items: left;
-            margin-left: 64px;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            padding: 40px 20px;
         }
-
-        .bottom-container {
-            background-color: #64A651;
+        
+        /* Background pattern */
+        .container-all::before {
+            content: "";
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            top: -50%;
+            left: -50%;
+            background: radial-gradient(rgba(255, 255, 255, 0.1) 8%, transparent 8%);
+            background-position: 0 0;
+            background-size: 30px 30px;
+            transform: rotate(30deg);
+            z-index: 1;
+        }
+        
+        /* Registration content container */
+        .registration-content {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: stretch;
+            max-width: 1000px;
+            width: 100%;
+            position: relative;
+            z-index: 2;
+        }
+        
+        /* Left section - webcam */
+        .left-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background-color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 20px 0 0 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Right section - form */
+        .right-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 30px;
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 0 20px 20px 0;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Responsive layout for mobile */
+        @media (max-width: 768px) {
+            .registration-content {
+                flex-direction: column;
+                width: 100%;
+            }
+            
+            .left-container {
+                border-radius: 20px 20px 0 0;
+                padding: 15px;
+            }
+            
+            .right-container {
+                border-radius: 0 0 20px 20px;
+                padding: 20px;
+            }
+        }
+        
+        /* Webcam styling */
+        video {
+            width: 100%;
+            max-width: 300px;
+            height: 300px;
+            object-fit: cover;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Form input styling */
+        input, select {
+            width: 100%;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            border: none;
+            border-bottom: 2px solid #ddd;
+            background-color: transparent;
+            font-family: 'Poppins', sans-serif;
             font-size: 16px;
-            font-family: 'Roboto', sans-serif;
-            font-weight: bold;
-            border-radius: 10px;
-            color: #ffffff;
-            padding-left: 16px;
-            padding-top: 1px;
-            padding-bottom: 1px;
-            margin-right: 400px;
-            margin-left: 400px;
-            position:fixed;
-            bottom: 0;
-            display: none;
-            z-index: 1000;
+            transition: border-color 0.3s ease;
+            outline: none;
         }
-
-        /* Added error message container */
-        .error-container {
-            background-color: #FF4C4C;
-            color: white;
-            font-size: 18px;
-            font-family: 'Roboto', sans-serif;
-            font-weight: bold;
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 20px;
-            text-align: center;
-            display: none;
+        
+        input:focus, select:focus {
+            border-bottom-color: #3a7bd5;
         }
-
-        .name {
-            color: #131313;
-        }
-
-        button {
-            padding: 10px 20px;
-            margin-top: 20px;
-            font-size: 16px;
+        
+        select {
             cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 20px;
+            padding-right: 40px;
         }
-
-        #capture-button {
-            background-color: #64A651;
-            color: #131313;
-            border: none;
-            border-radius: 4px;
-            margin-top: 10px;
-            font-size: 40px;
-            font-family: 'Roboto', sans-serif;
-            font-weight: bold;
+        
+        input::placeholder, select::placeholder {
+            color: #999;
         }
-
-        #back-button {
-            background-color: #FF9933;
-            color:  #131313;
+        
+        /* Input validation styling */
+        .validation-error {
+            color: #FF5E62;
+            font-size: 13px;
+            margin-top: -10px;
+            margin-bottom: 15px;
+            font-weight: 500;
+            display: none;
+        }
+        
+        .input-error {
+            border-bottom: 2px solid #FF5E62 !important;
+        }
+        
+        /* Button styling */
+        button {
+            cursor: pointer;
             border: none;
-            border-radius: 4px;
-            margin-top: 10px;
-            font-size: 40px;
-            font-family: 'Roboto', sans-serif;
-            font-weight: bold;
+            border-radius: 10px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 16px;
+            padding: 12px 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+        }
+        
+        button::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.2));
+            z-index: 1;
         }
         
         #toggle-login-method {
-            background-color: #0099CC;
-            color: #131313;
-            border: 5px solid #131313;
-            border-radius: 10px;
-            font-size: 24px;
-            font-family: 'Roboto', sans-serif;
-            font-weight: bold;
-            margin-bottom: 20px;
-            width: 100%;
+            background: linear-gradient(135deg, #36D1DC, #5B86E5);
+            color: white;
         }
-
-        input, select {
-            font-size: 32px;
-            font-family: 'Roboto', sans-serif;
-            font-weight: bold;
-            padding: 10px;
-            background-color: transparent; /* Removes background */
-            border: none; /* Removes all borders */
-            border-bottom: 2px solid #000; /* Adds a bottom border */
-            outline: none; /* Removes the default focus outline */
-            margin-bottom: 10px;
+        
+        #capture-button {
+            background: linear-gradient(135deg, #36D1DC, #5B86E5);
+            color: white;
         }
-
-        select:hover {
-            cursor: pointer;
-        }
-
-        input::placeholder {
-            color: #131313; /* Change this to your desired color */
-        }
-
-        #capture-button{
-            background-color: #2589BD;
-            font-size: 32px;
-            font-family: 'Roboto', sans-serif;
-            font-weight: bold;
-            border: 5px solid #131313;
-            border-radius: 10px;
-        }
-        #capture-button:hover {
-            background-color: #227BAA;
-            cursor: pointer;
-        }
-
+        
         #back-button {
-            background-color: #FCA61D;
-            font-size: 32px;
-            font-family: 'Roboto', sans-serif;
-            font-weight: bold;
-            border: 5px solid #131313;
-            border-radius: 10px;
+            background: linear-gradient(135deg, #FF9966, #FF5E62);
+            color: white;
         }
-        #back-button:hover {
-            background-color: #FFCC66;
-            cursor: pointer;
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
-
-        video {
-            border: 1px solid #000000;
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        /* Error display */
+        .error-container {
+            background-color: rgba(255, 94, 98, 0.1);
+            border-left: 4px solid #FF5E62;
             border-radius: 4px;
-            width: 300px;
-            height: 300px;
-            object-fit: cover;
+            padding: 15px;
+            margin: 15px 0;
+            color: #d63031;
+            font-size: 14px;
+            display: none;
+        }
+        
+        /* Processing indicator */
+        .processing-indicator {
+            display: none;
+            text-align: center;
+            margin: 15px 0;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-left-color: #36D1DC;
+            animation: spin 1s ease-in-out infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Toggle forms */
+        #facial-recognition-container {
+            display: block;
         }
         
         .login-container {
             display: none;
             flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            border: 5px solid #131313;
-            border-radius: 10px;
-            background-color: #fff;
-            margin-top: 20px;
+            width: 100%;
         }
         
-        .form-group {
-            width: 100%;
-            margin-bottom: 15px;
+        /* Status message */
+        .bottom-container {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(100, 166, 81, 0.9);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-weight: 500;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            display: none;
+            text-align: center;
+            max-width: 80%;
         }
-
     </style>
 </head>
 <body>
     <?php include '../../Capstone2/header.php'; ?>
 
     <div class="container-all">
-        <div class="left-container">
-            <!-- Video element to display webcam stream -->
-            <video id="webcam" autoplay></video>
-            <!-- Canvas element to capture and draw image -->
-            <canvas id="canvas" style="display:none;"></canvas>
-        </div>
-        
-        <div class="right-container">
-            <button id="toggle-login-method">Switch to Username/Password</button>
-            
-            <!-- Facial Recognition Registration Form -->
-            <div id="facial-recognition-container">
-                <input type="text" id="username" placeholder="Create Username" required>
-                <input type="password" id="password" placeholder="Create Password" required>
-                
-                <br>
-                <select id="role" required>
-                    <option value="" disabled selected>Select Position</option>
-                    <option value="Admin">Admin</option>
-                    <option value="Employee">Employee</option>
-                </select>
-                <br>
-                <select id="department" required>
-                    <option value="" disabled selected>Select Department</option>
-                    <option value="sales">Sales</option>
-                    <option value="purchasing">Purchasing</option>
-                    <option value="proddev">Product Development</option>
-                    <option value="warehouse">Warehouse</option>
-                    <option value="logistics">Logistics</option>
-                    <option value="accounting">Accounting</option>
-                    <option value="admin">Admin</option>
-                </select>
-                <!-- Added error message container -->
-                <div class="error-container" id="error-message"></div>
-                <button id="capture-button">Submit</button>
-                <button id="back-button">Back</button>
+        <div class="registration-content">
+            <!-- Left section with webcam -->
+            <div class="left-container">
+                <video id="webcam" autoplay></video>
+                <!-- Canvas element to capture and draw image -->
+                <canvas id="canvas" style="display:none;"></canvas>
             </div>
             
-            <!-- Traditional Login Registration Form -->
-            <div id="traditional-login-container" class="login-container">
-                <form id="traditional-register-form" method="post" action="traditional_register.php">
-                    <div class="form-group">
-                        <input type="text" name="trad_username" placeholder="Create Username" required>
+            <!-- Right section with forms -->
+            <div class="right-container">
+                <h2>Create Account</h2>
+                <p>Join SuperPack Enterprise with facial recognition or traditional registration</p>
+                
+                <button id="toggle-login-method">Switch to Username/Password</button>
+                
+                <!-- Facial Recognition Registration Form -->
+                <div id="facial-recognition-container">
+                    <input type="text" id="username" placeholder="Create Username" required minlength="3">
+                    <div id="username-error" class="validation-error">Username must be at least 3 characters</div>
+                    
+                    <input type="password" id="password" placeholder="Create Password" required minlength="6">
+                    <div id="password-error" class="validation-error">Password must be at least 6 characters</div>
+                    
+                    <select id="role" required>
+                        <option value="" disabled selected>Select Position</option>
+                        <option value="Admin">Admin</option>
+                        <option value="Employee">Employee</option>
+                    </select>
+                    <div id="role-error" class="validation-error">Please select a position</div>
+                    
+                    <select id="department" required>
+                        <option value="" disabled selected>Select Department</option>
+                        <option value="sales">Sales</option>
+                        <option value="purchasing">Purchasing</option>
+                        <option value="proddev">Product Development</option>
+                        <option value="warehouse">Warehouse</option>
+                        <option value="logistics">Logistics</option>
+                        <option value="accounting">Accounting</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                    <div id="department-error" class="validation-error">Please select a department</div>
+                    
+                    <!-- Processing indicator -->
+                    <div class="processing-indicator" id="processing-indicator">
+                        <div class="spinner"></div>
+                        <p>Processing registration...</p>
                     </div>
-                    <div class="form-group">
-                        <input type="password" name="trad_password" placeholder="Create Password" required>
-                    </div>
-                    <div class="form-group">
-                        <select name="trad_role" required>
-                            <option value="" disabled selected>Select Position</option>
-                            <option value="Admin">Admin</option>
-                            <option value="Employee">Employee</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <select name="trad_department" required>
-                            <option value="" disabled selected>Select Department</option>
-                            <option value="sales">Sales</option>
-                            <option value="purchasing">Purchasing</option>
-                            <option value="proddev">Product Development</option>
-                            <option value="warehouse">Warehouse</option>
-                            <option value="logistics">Logistics</option>
-                            <option value="accounting">Accounting</option>
-                            <option value="admin">Admin</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <button type="submit" id="traditional-register-btn" 
-                                style="background-color: #2589BD; border: 5px solid #131313; 
-                                       border-radius: 10px; font-size: 32px; width: 100%;
-                                       color: #131313; font-weight: bold;">
-                            Register
-                        </button>
-                    </div>
-                    <div class="form-group">
-                        <button type="button" id="back-button-traditional"
-                               style="background-color: #FCA61D; border: 5px solid #131313; 
-                                      border-radius: 10px; font-size: 32px; width: 100%;
-                                      color: #131313; font-weight: bold;">
-                            Back
-                        </button>
-                    </div>
-                </form>
+                    
+                    <!-- Error message container -->
+                    <div class="error-container" id="error-message"></div>
+                    
+                    <button id="capture-button">Submit</button>
+                    <button id="back-button">Back to Home</button>
+                </div>
+                
+                <!-- Traditional Registration Form -->
+                <div id="traditional-login-container" class="login-container">
+                    <form id="traditional-register-form" method="post" action="traditional_register.php" onsubmit="return validateTraditionalForm()">
+                        <div class="form-group">
+                            <input type="text" name="trad_username" id="trad_username" placeholder="Create Username" required minlength="3">
+                            <div id="trad-username-error" class="validation-error">Username must be at least 3 characters</div>
+                        </div>
+                        <div class="form-group">
+                            <input type="password" name="trad_password" id="trad_password" placeholder="Create Password" required minlength="6">
+                            <div id="trad-password-error" class="validation-error">Password must be at least 6 characters</div>
+                        </div>
+                        <div class="form-group">
+                            <select name="trad_role" id="trad_role" required>
+                                <option value="" disabled selected>Select Position</option>
+                                <option value="Admin">Admin</option>
+                                <option value="Employee">Employee</option>
+                            </select>
+                            <div id="trad-role-error" class="validation-error">Please select a position</div>
+                        </div>
+                        <div class="form-group">
+                            <select name="trad_department" id="trad_department" required>
+                                <option value="" disabled selected>Select Department</option>
+                                <option value="sales">Sales</option>
+                                <option value="purchasing">Purchasing</option>
+                                <option value="proddev">Product Development</option>
+                                <option value="warehouse">Warehouse</option>
+                                <option value="logistics">Logistics</option>
+                                <option value="accounting">Accounting</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                            <div id="trad-department-error" class="validation-error">Please select a department</div>
+                        </div>
+                        <div class="form-group">
+                            <button type="submit" id="traditional-register-btn" 
+                                    style="background: linear-gradient(135deg, #36D1DC, #5B86E5); color: white;">
+                                Register
+                            </button>
+                        </div>
+                        <div class="form-group">
+                            <button type="button" id="back-button-traditional"
+                                   style="background: linear-gradient(135deg, #FF9966, #FF5E62); color: white;">
+                                Back to Home
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
 
         <div class="bottom-container">
-            <!-- Text that changes to show the user the registration status -->
             <p id="status">Registration status: Waiting for capture...</p>
         </div>
     </div>
@@ -332,7 +439,7 @@
                     // Show error message to user
                     document.getElementById('status').textContent = "Could not access webcam. Please use username/password login instead.";
                     document.querySelector('.bottom-container').style.display = 'block';
-                    document.querySelector('.bottom-container').style.backgroundColor = '#FF4C4C';
+                    document.querySelector('.bottom-container').style.backgroundColor = 'rgba(255, 76, 76, 0.9)';
                     
                     // Auto switch to traditional login if webcam fails
                     setTimeout(() => {
@@ -341,8 +448,112 @@
                 });
         }
 
+        // Add input validation listeners
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const roleSelect = document.getElementById('role');
+        const departmentSelect = document.getElementById('department');
+        
+        // Real-time validation for facial recognition form
+        usernameInput.addEventListener('input', function() {
+            validateInput(this, 'username-error', this.value.length >= 3);
+        });
+        
+        passwordInput.addEventListener('input', function() {
+            validateInput(this, 'password-error', this.value.length >= 6);
+        });
+        
+        roleSelect.addEventListener('change', function() {
+            validateInput(this, 'role-error', this.value !== '');
+        });
+        
+        departmentSelect.addEventListener('change', function() {
+            validateInput(this, 'department-error', this.value !== '');
+        });
+        
+        // Real-time validation for traditional form
+        document.getElementById('trad_username').addEventListener('input', function() {
+            validateInput(this, 'trad-username-error', this.value.length >= 3);
+        });
+        
+        document.getElementById('trad_password').addEventListener('input', function() {
+            validateInput(this, 'trad-password-error', this.value.length >= 6);
+        });
+        
+        document.getElementById('trad_role').addEventListener('change', function() {
+            validateInput(this, 'trad-role-error', this.value !== '');
+        });
+        
+        document.getElementById('trad_department').addEventListener('change', function() {
+            validateInput(this, 'trad-department-error', this.value !== '');
+        });
+        
+        // Helper function for validation
+        function validateInput(inputElement, errorId, isValid) {
+            const errorElement = document.getElementById(errorId);
+            
+            if (!isValid) {
+                inputElement.classList.add('input-error');
+                errorElement.style.display = 'block';
+                return false;
+            } else {
+                inputElement.classList.remove('input-error');
+                errorElement.style.display = 'none';
+                return true;
+            }
+        }
+        
+        // Validate the entire facial recognition form
+        function validateFacialRecognitionForm() {
+            const isUsernameValid = validateInput(usernameInput, 'username-error', usernameInput.value.length >= 3);
+            const isPasswordValid = validateInput(passwordInput, 'password-error', passwordInput.value.length >= 6);
+            const isRoleValid = validateInput(roleSelect, 'role-error', roleSelect.value !== '');
+            const isDepartmentValid = validateInput(departmentSelect, 'department-error', departmentSelect.value !== '');
+            
+            // Check if face is visible in webcam
+            const faceVisible = true; // This would need actual face detection logic
+            
+            return isUsernameValid && isPasswordValid && isRoleValid && isDepartmentValid && faceVisible;
+        }
+        
+        // Validate the traditional form
+        function validateTraditionalForm() {
+            const tradUsername = document.getElementById('trad_username');
+            const tradPassword = document.getElementById('trad_password');
+            const tradRole = document.getElementById('trad_role');
+            const tradDepartment = document.getElementById('trad_department');
+            
+            const isUsernameValid = validateInput(tradUsername, 'trad-username-error', tradUsername.value.length >= 3);
+            const isPasswordValid = validateInput(tradPassword, 'trad-password-error', tradPassword.value.length >= 6);
+            const isRoleValid = validateInput(tradRole, 'trad-role-error', tradRole.value !== '');
+            const isDepartmentValid = validateInput(tradDepartment, 'trad-department-error', tradDepartment.value !== '');
+            
+            return isUsernameValid && isPasswordValid && isRoleValid && isDepartmentValid;
+        }
+
         // Capture image function
         function captureImage() {
+            // First validate the form
+            if (!validateFacialRecognitionForm()) {
+                // Show validation errors
+                document.getElementById('status').textContent = "Please fix the form errors before submitting";
+                document.querySelector('.bottom-container').style.backgroundColor = 'rgba(255, 76, 76, 0.9)';
+                document.querySelector('.bottom-container').style.display = 'block';
+                
+                setTimeout(() => {
+                    document.querySelector('.bottom-container').style.display = 'none';
+                }, 3000);
+                
+                return; // Stop execution if validation fails
+            }
+            
+            // Show processing indicator
+            document.getElementById('processing-indicator').style.display = 'block';
+            
+            // Disable submit button while processing
+            captureButton.disabled = true;
+            captureButton.style.opacity = '0.7';
+            
             // Set canvas width and height to video element's width and height
             canvasElement.width = webcamElement.videoWidth;
             canvasElement.height = webcamElement.videoHeight;
@@ -377,6 +588,13 @@
                 }
             })
             .then((response) => {
+                // Hide processing indicator
+                document.getElementById('processing-indicator').style.display = 'none';
+                
+                // Re-enable submit button
+                captureButton.disabled = false;
+                captureButton.style.opacity = '1';
+                
                 if (!response.ok) {
                     return response.json().then(errorData => {
                         throw errorData;
@@ -388,7 +606,7 @@
                 console.log("Server response:", data); // Log the server response to the console 
                 if (data.message) {
                     document.getElementById('status').textContent = data.message;
-                    document.querySelector('.bottom-container').style.backgroundColor = '#64A651';
+                    document.querySelector('.bottom-container').style.backgroundColor = 'rgba(100, 166, 81, 0.9)';
                     document.querySelector('.bottom-container').style.display = 'block';
 
                     // Hide any error messages
@@ -403,6 +621,10 @@
             .catch((error) => {
                 console.error("Error:", error);
                 
+                // Re-enable submit button in case of error
+                captureButton.disabled = false;
+                captureButton.style.opacity = '1';
+                
                 // Clear any previous error messages
                 document.getElementById('error-message').innerHTML = '';
                 
@@ -413,6 +635,11 @@
                             `<strong>User already registered!</strong><br>
                              The username "${error.details.name}" is already taken.<br>
                              Please choose a different username.`;
+                             
+                        // Also highlight the username field
+                        validateInput(usernameInput, 'username-error', false);
+                        document.getElementById('username-error').textContent = 'Username already taken';
+                        document.getElementById('username-error').style.display = 'block';
                     } 
                     else if (error.error === 'Face already registered') {
                         document.getElementById('error-message').innerHTML = 
@@ -425,6 +652,17 @@
                             `<strong>Username already exists!</strong><br>
                              The username "${error.details.username}" is already taken.<br>
                              Please choose a different username.`;
+                             
+                        // Also highlight the username field
+                        validateInput(usernameInput, 'username-error', false);
+                        document.getElementById('username-error').textContent = 'Username already taken';
+                        document.getElementById('username-error').style.display = 'block';
+                    }
+                    else if (error.error === 'No face detected in the image') {
+                        document.getElementById('error-message').innerHTML = 
+                            `<strong>No face detected!</strong><br>
+                             Please make sure your face is clearly visible in the camera<br>
+                             and try again.`;
                     }
                     else {
                         document.getElementById('error-message').innerHTML = 
@@ -436,7 +674,7 @@
                     
                     // Also show in bottom container
                     document.getElementById('status').textContent = error.error || "Registration failed";
-                    document.querySelector('.bottom-container').style.backgroundColor = '#FF4C4C';
+                    document.querySelector('.bottom-container').style.backgroundColor = 'rgba(255, 76, 76, 0.9)';
                     document.querySelector('.bottom-container').style.display = 'block';
                     
                     // Hide bottom container after delay
@@ -451,7 +689,7 @@
                     
                     document.getElementById('status').textContent = "Error sending image to server.";
                     document.querySelector('.bottom-container').style.display = 'block';
-                    document.querySelector('.bottom-container').style.backgroundColor = '#FF4C4C';
+                    document.querySelector('.bottom-container').style.backgroundColor = 'rgba(255, 76, 76, 0.9)';
                     
                     setTimeout(() => {
                         document.querySelector('.bottom-container').style.display = 'none';

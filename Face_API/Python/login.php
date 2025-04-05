@@ -9,188 +9,125 @@ session_start();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <title>SuperPack Enterprise - Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Reset margins and paddings */
+        /* Modern CSS Reset and Base Styles */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        
         html, body {
             margin: 0;
             padding: 0;
             height: 100%;
             width: 100%;
+            font-family: 'Poppins', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            background-color: #f8f9fa;
         }
+        
+        /* Main container with gradient background */
         .container-all {
-            height: 100vh;
-            width: 100vw;
-            background: #6f9947;
-            display: flex; /* Add flexbox to center content */
-            flex-direction: column; /* Stack the elements vertically */
-            justify-content: space-around; /* Center horizontally */
-            align-items: center; /* Center vertically */
-        }
-
-        .left-container {
+            min-height: 100vh;
+            width: 100%;
+            background: linear-gradient(135deg, #3a7bd5, #00d2ff);
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            height: auto;
+            position: relative;
+            overflow: hidden;
+            padding: 40px 20px;
         }
-
-        .right-container {
+        
+        /* Background pattern */
+        .container-all::before {
+            content: "";
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            top: -50%;
+            left: -50%;
+            background: radial-gradient(rgba(255, 255, 255, 0.1) 8%, transparent 8%);
+            background-position: 0 0;
+            background-size: 30px 30px;
+            transform: rotate(30deg);
+            z-index: 1;
+        }
+        
+        /* Login content container */
+        .login-content {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             justify-content: center;
-            align-items: left;
-            margin-left: 64px;
-        }
-
-        .bottom-container {
-            background-color: #64A651;
-            font-size: 24px;
-            font-family: 'Roboto', sans-serif;
-            font-weight: bold;
-            border-radius: 10px;
-            color: #ffffff;
-            padding-left: 24px;
-            padding-top: 1px;
-            padding-bottom: 1px;
-            position:fixed;
-            bottom: 0;
-            display: none;
-            z-index: 1000;
-        }
-
-        .name {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 16px;
-        }
-
-        button {
-            padding: 10px 20px;
-            margin-top: 20px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-
-        #capture-button {
-            background-color: #64A651;
-            color: #131313;
-            border: 5px solid #131313;
-            border-radius: 4px;
-            margin-top: 10px;
-            font-size: 40px;
-            font-family: 'Roboto', sans-serif;
-            font-weight: bold;
-        }
-
-        #back-button {
-            background-color: #FF9933;
-            color: #131313;
-            border: 5px solid #131313;
-            border-radius: 4px;
-            margin-top: 10px;
-            font-size: 40px;
-            font-family: 'Roboto', sans-serif;
-            font-weight: bold;
-        }
-        
-        #register-button {
-            background-color: #0099CC;
-            color: #131313;
-            border: 5px solid #131313;
-            border-radius: 4px;
-            margin-top: 5px;
-            font-size: 40px;
-            font-family: 'Roboto', sans-serif;
-            font-weight: bold;
-        }
-        
-        #toggle-login-method {
-            background-color: #0099CC;
-            color: #131313;
-            border: 5px solid #131313;
-            border-radius: 10px;
-            font-size: 24px;
-            font-family: 'Roboto', sans-serif;
-            font-weight: bold;
-            margin-bottom: 20px;
+            align-items: stretch;
+            max-width: 1000px;
             width: 100%;
-        }
-
-        input {
-            font-size: 32px;
-            font-family: 'Roboto', sans-serif;
-            font-weight: bold;
-            padding: 10px;
-            background-color: transparent; /* Removes background */
-            border: none; /* Removes all borders */
-            border-bottom: 2px solid #000; /* Adds a bottom border */
-            outline: none; /* Removes the default focus outline */
-            margin-bottom: 10px;
+            position: relative;
+            z-index: 2;
         }
         
-        input::placeholder {
-            color: #131313; /* Change this to your desired color */
-        }
-        
-        #username {
-            margin-bottom: 22px;
-            display: none; /* Hide username by default */
-        }
-
-        #capture-button:hover {
-            background-color: #90EE90;
-        }
-        
-        #back-button:hover {
-            background-color: #FFCC66;
-        }
-        
-        #register-button:hover {
-            background-color: #66CCFF;
-        }
-
-        video {
-            border: 1px solid #000000;
-            border-radius: 4px;
-            width: 400px;
-            height: 400px;
-            object-fit: cover;
-        }
-        
-        .login-container {
-            display: none;
-            flex-direction: column;
+        /* Left section - webcam */
+        .left-container {
+            flex: 1;
+            display: flex;
             justify-content: center;
             align-items: center;
             padding: 20px;
-            border: 5px solid #131313;
-            border-radius: 10px;
-            background-color: #fff;
-            margin-top: 20px;
+            background-color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 20px 0 0 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
         }
         
-        .form-group {
-            width: 100%;
-            margin-bottom: 15px;
+        /* Right section - form */
+        .right-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 30px;
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 0 20px 20px 0;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Responsive layout for mobile */
+        @media (max-width: 768px) {
+            .login-content {
+                flex-direction: column;
+                width: 100%;
+            }
+            
+            .left-container {
+                border-radius: 20px 20px 0 0;
+                padding: 15px;
+            }
+            
+            .right-container {
+                border-radius: 0 0 20px 20px;
+                padding: 20px;
+            }
         }
         
-        .face-scan-indicator {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background-color: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-family: 'Roboto', sans-serif;
-            z-index: 100;
-            font-size: 16px;
-        }
-        
+        /* Video container with scanning overlay */
         .video-container {
             position: relative;
+            width: 100%;
+            max-width: 360px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        video {
+            width: 100%;
+            height: 360px;
+            object-fit: cover;
+            border-radius: 15px;
+            display: block;
         }
         
         #scanning-overlay {
@@ -199,52 +136,199 @@ session_start();
             left: 0;
             width: 100%;
             height: 100%;
-            border: 4px solid #64A651;
-            border-radius: 4px;
+            border: 3px solid #36D1DC;
+            border-radius: 15px;
             box-sizing: border-box;
             animation: scanning 2s infinite linear;
             pointer-events: none;
-            display: block;
         }
         
         @keyframes scanning {
             0% {
-                border-color: rgba(100, 166, 81, 0.5);
-                box-shadow: 0 0 0 0 rgba(100, 166, 81, 0.7);
+                border-color: rgba(54, 209, 220, 0.5);
+                box-shadow: 0 0 0 0 rgba(54, 209, 220, 0.7);
             }
             50% {
-                border-color: rgba(100, 166, 81, 1);
-                box-shadow: 0 0 0 5px rgba(100, 166, 81, 0.3);
+                border-color: rgba(54, 209, 220, 1);
+                box-shadow: 0 0 0 5px rgba(54, 209, 220, 0.3);
             }
             100% {
-                border-color: rgba(100, 166, 81, 0.5);
-                box-shadow: 0 0 0 0 rgba(100, 166, 81, 0.7);
+                border-color: rgba(54, 209, 220, 0.5);
+                box-shadow: 0 0 0 0 rgba(54, 209, 220, 0.7);
             }
         }
-
+        
+        .face-scan-indicator {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 100;
+        }
+        
+        /* Form styling */
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            border: none;
+            border-bottom: 2px solid #ddd;
+            background-color: transparent;
+            font-family: 'Poppins', sans-serif;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+            outline: none;
+        }
+        
+        input:focus {
+            border-bottom-color: #3a7bd5;
+        }
+        
+        input::placeholder {
+            color: #999;
+        }
+        
+        /* Modern button styling */
+        button {
+            cursor: pointer;
+            border: none;
+            border-radius: 10px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 16px;
+            padding: 12px 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+        }
+        
+        button::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.2));
+            z-index: 1;
+        }
+        
+        #toggle-login-method {
+            background: linear-gradient(135deg, #36D1DC, #5B86E5);
+            color: white;
+        }
+        
+        #capture-button {
+            background: linear-gradient(135deg, #64A651, #90EE90);
+            color: white;
+        }
+        
+        #register-button {
+            background: linear-gradient(135deg, #36D1DC, #5B86E5);
+            color: white;
+        }
+        
+        #back-button {
+            background: linear-gradient(135deg, #FF9966, #FF5E62);
+            color: white;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        /* Toggle button and forms */
+        #facial-recognition-container {
+            display: block;
+        }
+        
+        .login-container {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+        }
+        
+        #traditional-login-btn {
+            background: linear-gradient(135deg, #64A651, #90EE90);
+            color: white;
+        }
+        
+        #register-button-traditional {
+            background: linear-gradient(135deg, #36D1DC, #5B86E5);
+            color: white;
+        }
+        
+        #back-button-traditional {
+            background: linear-gradient(135deg, #FF9966, #FF5E62);
+            color: white;
+        }
+        
+        /* Status message */
+        .bottom-container {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(100, 166, 81, 0.9);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-weight: 500;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            display: none;
+            text-align: center;
+            max-width: 80%;
+        }
+        
+        /* Canvas for capturing webcam */
+        canvas {
+            display: none;
+        }
     </style>
 </head>
 
 <body>
     <?php include '../../Capstone2/header.php'; ?>
+    
     <div class="container-all">
-        <div class="left-container">
-            <!-- Video element to display webcam stream with scanning overlay -->
-            <div class="video-container">
-                <video id="webcam" autoplay></video>
-                <div id="scanning-overlay"></div>
-                <div class="face-scan-indicator">Scanning for face...</div>
+        <div class="login-content">
+            <!-- Left section with webcam -->
+            <div class="left-container">
+                <div class="video-container">
+                    <video id="webcam" autoplay></video>
+                    <div id="scanning-overlay"></div>
+                    <div class="face-scan-indicator">Scanning for face...</div>
+                </div>
+                <!-- Hidden canvas for processing -->
+                <canvas id="canvas" style="display:none;"></canvas>
             </div>
 
+            <!-- Right section with login forms -->
             <div class="right-container">
+                <h2>Sign In</h2>
+                <p>Use facial recognition or username/password to access your account</p>
+                
                 <button id="toggle-login-method">Switch to Username/Password</button>
                 
                 <!-- Facial Recognition Login Form -->
                 <div id="facial-recognition-container">
-                    <input type="text" id="username" placeholder="Enter your username">
-                    <button id="register-button">Register</button>
+                    <input type="text" id="username" placeholder="Enter your username" style="display: none;">
+                    <button id="register-button">Register New Account</button>
                     <button id="capture-button">Manual Submit</button>
-                    <button id="back-button">Back</button>
+                    <button id="back-button">Back to Home</button>
                 </div>
                 
                 <!-- Traditional Login Form -->
@@ -257,44 +341,24 @@ session_start();
                             <input type="password" name="password" placeholder="Password" required>
                         </div>
                         <div class="form-group">
-                            <button type="submit" id="traditional-login-btn" 
-                                    style="background-color: #64A651; border: 5px solid #131313; 
-                                           border-radius: 10px; font-size: 32px; width: 100%;
-                                           color: #131313; font-weight: bold;">
-                                Login
-                            </button>
+                            <button type="submit" id="traditional-login-btn">Login</button>
                         </div>
                         <div class="form-group">
-                            <button type="button" id="register-button-traditional" 
-                                    style="background-color: #0099CC; border: 5px solid #131313; 
-                                           border-radius: 10px; font-size: 32px; width: 100%;
-                                           color: #131313; font-weight: bold;">
-                                Register
-                            </button>
+                            <button type="button" id="register-button-traditional">Register</button>
                         </div>
                         <div class="form-group">
-                            <button type="button" id="back-button-traditional"
-                                   style="background-color: #FCA61D; border: 5px solid #131313; 
-                                          border-radius: 10px; font-size: 32px; width: 100%;
-                                          color: #131313; font-weight: bold;">
-                                Back
-                            </button>
+                            <button type="button" id="back-button-traditional">Back to Home</button>
                         </div>
                     </form>
                 </div>
             </div>
-
-            <!-- Canvas element to capture and draw image -->
-            <canvas id="canvas" style="display:none;"></canvas>
         </div>
 
         <div class="bottom-container">
-            <!-- Text that changes to show the user the registration status -->
             <p id="status">Login status: Waiting for input...</p>
         </div>
     </div>
     
-
     <script>
         // Toggle between facial recognition and traditional login
         document.getElementById('toggle-login-method').addEventListener('click', function() {
@@ -365,7 +429,6 @@ session_start();
             // First, show a message to the user about webcam permissions
             document.getElementById('status').textContent = "Please allow camera access when prompted";
             document.querySelector('.bottom-container').style.display = 'block';
-            document.querySelector('.bottom-container').style.backgroundColor = '#64A651';
             
             // Better error classification
             navigator.mediaDevices.getUserMedia({ video: true })
@@ -398,7 +461,7 @@ session_start();
                     // Show error message to user
                     document.getElementById('status').textContent = errorMessage;
                     document.querySelector('.bottom-container').style.display = 'block';
-                    document.querySelector('.bottom-container').style.backgroundColor = '#FF4C4C';
+                    document.querySelector('.bottom-container').style.backgroundColor = 'rgba(255, 76, 76, 0.9)';
                     
                     // Disable scanning overlay and indicator
                     document.getElementById('scanning-overlay').style.display = 'none';
@@ -501,7 +564,7 @@ session_start();
                     console.log("Attendance Marked!");
                     
                     document.getElementById('status').textContent = data.message;
-                    document.querySelector('.bottom-container').style.backgroundColor = '#64A651';
+                    document.querySelector('.bottom-container').style.backgroundColor = 'rgba(100, 166, 81, 0.9)';
                     document.querySelector('.bottom-container').style.display = 'block';
 
                     // Create a form element
@@ -550,7 +613,7 @@ session_start();
                     
                     document.getElementById('status').textContent = data.message;
                     document.querySelector('.bottom-container').style.display = 'block';
-                    document.querySelector('.bottom-container').style.backgroundColor = '#FF4C4C';
+                    document.querySelector('.bottom-container').style.backgroundColor = 'rgba(255, 76, 76, 0.9)';
 
                     // Hide the error message after 2.5 seconds
                     setTimeout(() => {
@@ -567,7 +630,7 @@ session_start();
                 
                 document.getElementById('status').textContent = "Error connecting to face recognition server.";
                 document.querySelector('.bottom-container').style.display = 'block';
-                document.querySelector('.bottom-container').style.backgroundColor = '#FF4C4C';
+                document.querySelector('.bottom-container').style.backgroundColor = 'rgba(255, 76, 76, 0.9)';
 
                 setTimeout(() => {
                     document.querySelector('.bottom-container').style.display = 'none';
