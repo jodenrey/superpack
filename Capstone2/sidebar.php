@@ -46,8 +46,9 @@ $department = isset($_SESSION['user_department']) ? $_SESSION['user_department']
                         <li><a href="attendance_check.php?username=<?php echo urlencode($_SESSION['username']); ?>">Checking Attendance</a></li>
                         <li><a href="worker_eval.php">Evaluation</a></li>
                         <li><a href="warning_notice.php">Warning Notice</a></li>
-                        <li><a href="recruitment.php">Recruitment and Selection</a></li>
-                        <li><a href="training.php">Training and Development</a></li>
+                        <li><a href="selection.php">Selection</a></li>
+                        <li><a href="training_management.php">Training Management</a></li>
+                        <li><a href="deployment_management.php">Deployment Management</a></li>
                     </ul>
                 </li>
                 <li>
@@ -106,17 +107,33 @@ document.addEventListener('DOMContentLoaded', function() {
     var evaluationItem = Array.from(document.querySelectorAll('.big-sidebar ul li a'))
         .find(a => a.textContent.trim().includes('Evaluation'));
     
+    // Select the new modules
+    var selectionItem = Array.from(document.querySelectorAll('.big-sidebar ul li a'))
+        .find(a => a.textContent.trim().includes('Selection'));
+    
+    var trainingManagementItem = Array.from(document.querySelectorAll('.big-sidebar ul li a'))
+        .find(a => a.textContent.trim().includes('Training Management'));
+    
+    var deploymentManagementItem = Array.from(document.querySelectorAll('.big-sidebar ul li a'))
+        .find(a => a.textContent.trim().includes('Deployment Management'));
+    
     // Hide or show items based on role
     if (role !== 'Admin') {
         hideElement(payrollItem);
         hideElement(recruitmentItem);
         hideElement(personnelRecordsItem);
         hideElement(evaluationItem);
+        hideElement(selectionItem);
+        hideElement(trainingManagementItem);
+        hideElement(deploymentManagementItem);
     } else {
         showElement(payrollItem);
         showElement(recruitmentItem);
         showElement(personnelRecordsItem);
         showElement(evaluationItem);
+        showElement(selectionItem);
+        showElement(trainingManagementItem);
+        showElement(deploymentManagementItem);
     }
 });
 

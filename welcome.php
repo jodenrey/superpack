@@ -143,6 +143,11 @@
         color: white;
     }
     
+    .recruitment-btn {
+        background: linear-gradient(135deg, #6dd5ed, #2193b0);
+        color: white;
+    }
+    
     .action-button:hover {
         transform: translateY(-5px);
         box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
@@ -217,6 +222,13 @@
                     </span>
                     <span class="button-text">Register</span>
                 </button>
+                
+                <button class="action-button recruitment-btn">
+                    <span class="button-icon">
+                        <i class="fas fa-user-tie"></i>
+                    </span>
+                    <span class="button-text">Recruitment</span>
+                </button>
             </div>
             
             <div class="welcome-footer">
@@ -246,6 +258,18 @@
                 button.style.transform = 'scale(1)';
                 setTimeout(() => {
                     window.location.href = 'Face_API/Python/register.php';
+                }, 200);
+            }, 200);
+        });
+        
+        document.querySelector('.recruitment-btn').addEventListener('click', function() {
+            const button = this;
+            button.style.transform = 'scale(0.95)';
+            
+            setTimeout(() => {
+                button.style.transform = 'scale(1)';
+                setTimeout(() => {
+                    window.location.href = 'job_application.php';
                 }, 200);
             }, 200);
         });
