@@ -69,10 +69,11 @@ session_start();
             z-index: 2;
         }
         
-        /* Left section - webcam */
+        /* Left section - QR scanner */
         .left-container {
             flex: 1;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             padding: 20px;
@@ -112,19 +113,21 @@ session_start();
             }
         }
         
-        /* Video container with scanning overlay */
-        .video-container {
+        /* QR scanner container styling */
+        .qr-scanner-container {
             position: relative;
             width: 100%;
             max-width: 360px;
+            height: 360px;
             border-radius: 15px;
             overflow: hidden;
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            background-color: #000;
         }
         
-        video {
+        #qr-video {
             width: 100%;
-            height: 360px;
+            height: 100%;
             object-fit: cover;
             border-radius: 15px;
             display: block;
@@ -158,7 +161,7 @@ session_start();
             }
         }
         
-        .face-scan-indicator {
+        .scan-indicator {
             position: absolute;
             top: 10px;
             left: 10px;
@@ -220,82 +223,72 @@ session_start();
             z-index: 1;
         }
         
+        #login-button {
+            background: linear-gradient(135deg, #36D1DC, #5B86E5);
+            color: white;
+        }
+        
         #toggle-login-method {
-            background: linear-gradient(135deg, #36D1DC, #5B86E5);
-            color: white;
-        }
-        
-        #capture-button {
-            background: linear-gradient(135deg, #64A651, #90EE90);
-            color: white;
-        }
-        
-        #register-button {
-            background: linear-gradient(135deg, #36D1DC, #5B86E5);
-            color: white;
-        }
-        
-        #back-button {
             background: linear-gradient(135deg, #FF9966, #FF5E62);
             color: white;
         }
         
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        #register-link {
+            margin-top: 20px;
+            color: #3a7bd5;
+            text-align: center;
+            text-decoration: none;
+            font-weight: 500;
         }
         
-        button:active {
-            transform: translateY(0);
+        #register-link:hover {
+            text-decoration: underline;
         }
         
-        /* Toggle button and forms */
-        #facial-recognition-container {
+        /* Login methods toggle */
+        .login-method {
+            display: none;
+        }
+        
+        .login-method.active {
             display: block;
         }
         
-        .login-container {
-            display: none;
-            flex-direction: column;
-            width: 100%;
-        }
-        
-        #traditional-login-btn {
-            background: linear-gradient(135deg, #64A651, #90EE90);
-            color: white;
-        }
-        
-        #register-button-traditional {
-            background: linear-gradient(135deg, #36D1DC, #5B86E5);
-            color: white;
-        }
-        
-        #back-button-traditional {
-            background: linear-gradient(135deg, #FF9966, #FF5E62);
-            color: white;
-        }
-        
-        /* Status message */
-        .bottom-container {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: rgba(100, 166, 81, 0.9);
-            color: white;
-            padding: 15px 25px;
-            border-radius: 10px;
+        /* Error message styling */
+        .error-message {
+            background-color: rgba(255, 94, 98, 0.1);
+            color: #ff5e62;
+            border-left: 4px solid #ff5e62;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
             font-weight: 500;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-            z-index: 1000;
             display: none;
-            text-align: center;
-            max-width: 80%;
         }
         
-        /* Canvas for capturing webcam */
-        canvas {
+        /* Logo styling */
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo {
+            height: 80px;
+        }
+        
+        /* Validation error styling */
+        .validation-error {
+            color: #FF5E62;
+            font-size: 13px;
+            margin-top: -10px;
+            margin-bottom: 15px;
+            font-weight: 500;
             display: none;
+        }
+        
+        .input-error {
+            border-bottom: 2px solid #FF5E62 !important;
         }
     </style>
 </head>
@@ -305,348 +298,410 @@ session_start();
     
     <div class="container-all">
         <div class="login-content">
-            <!-- Left section with webcam -->
+            <!-- Left section with QR scanner -->
             <div class="left-container">
-                <div class="video-container">
-                    <video id="webcam" autoplay></video>
-                    <div id="scanning-overlay"></div>
-                    <div class="face-scan-indicator">Scanning for face...</div>
+                <div class="logo-container">
+                    <img src="Superpack-Enterprise-Logo.png" alt="SuperPack Enterprise Logo" class="logo">
                 </div>
-                <!-- Hidden canvas for processing -->
-                <canvas id="canvas" style="display:none;"></canvas>
+                <div class="qr-scanner-container">
+                    <video id="qr-video" autoplay playsinline></video>
+                    <div id="scanning-overlay"></div>
+                    <div class="scan-indicator">
+                        <i class="fas fa-qrcode"></i> Scanning for QR Code
+                    </div>
+                </div>
+                <p style="text-align: center; margin-top: 20px; color: #666;">
+                    <i class="fas fa-info-circle"></i> Point your QR code at the camera to login
+                </p>
             </div>
 
             <!-- Right section with login forms -->
             <div class="right-container">
-                <h2>Sign In</h2>
-                <p>Use facial recognition or username/password to access your account</p>
+                <h2>Welcome Back</h2>
+                <div class="error-message" id="error-message"></div>
                 
-                <button id="toggle-login-method">Switch to Username/Password</button>
+                <button id="toggle-login-method">
+                    <i class="fas fa-keyboard"></i> Use Manual Login
+                </button>
                 
-                <!-- Facial Recognition Login Form -->
-                <div id="facial-recognition-container">
-                    <input type="text" id="username" placeholder="Enter your username" style="display: none;">
-                    <button id="register-button">Register New Account</button>
-                    <button id="capture-button">Manual Submit</button>
-                    <button id="back-button">Back to Home</button>
+                <!-- QR Code Login Instructions -->
+                <div id="qr-login-method" class="login-method active">
+                    <p>Scan your QR code using the camera on the left to login instantly.</p>
+                    
+                    <!-- New QR Code Upload feature -->
+                    <div style="margin-top: 20px; margin-bottom: 20px; padding: 15px; border: 1px dashed #3a7bd5; border-radius: 10px; background-color: rgba(58, 123, 213, 0.05);">
+                        <p style="font-weight: 500; margin-top: 0;"><i class="fas fa-upload"></i> Or upload your QR code:</p>
+                        <input type="file" id="qr-upload" accept="image/*" style="display: none;">
+                        <label for="qr-upload" style="display: block; cursor: pointer; background: linear-gradient(135deg, #36D1DC, #5B86E5); color: white; text-align: center; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                            <i class="fas fa-file-upload"></i> Choose QR Code Image
+                        </label>
+                        <div id="qr-upload-status" style="font-size: 14px; text-align: center; display: none;"></div>
+                    </div>
+                    
+                    <p style="font-weight: 500; margin-top: 20px;">Don't have a QR code?</p>
+                    <p>You can use manual login with your Employee ID and password by clicking the button above.</p>
                 </div>
                 
-                <!-- Traditional Login Form -->
-                <div id="traditional-login-container" class="login-container">
-                    <form id="traditional-login-form" method="post" action="traditional_login.php">
-                        <div class="form-group">
-                            <input type="text" name="username" placeholder="Username" required>
-                        </div>
-                        <div class="form-group">
-                            <input type="password" name="password" placeholder="Password" required>
-                        </div>
-                        <div class="form-group">
-                            <button type="submit" id="traditional-login-btn">Login</button>
-                        </div>
-                        <div class="form-group">
-                            <button type="button" id="register-button-traditional">Register</button>
-                        </div>
-                        <div class="form-group">
-                            <button type="button" id="back-button-traditional">Back to Home</button>
-                        </div>
-                    </form>
-                </div>
+                <!-- Manual Login Form -->
+                <form id="manual-login-form" class="login-method">
+                    <input type="text" name="employee_id" id="employee_id" placeholder="Employee ID" required>
+                    <div class="validation-error" id="employee-id-error">Please enter your Employee ID</div>
+                    
+                    <input type="password" name="password" id="password" placeholder="Password" required>
+                    <div class="validation-error" id="password-error">Please enter your password</div>
+                    
+                    <button type="submit" id="login-button">
+                        <i class="fas fa-sign-in-alt"></i> Login
+                    </button>
+                </form>
+                
+                <a href="register.php" id="register-link">Don't have an account? Register</a>
             </div>
-        </div>
-
-        <div class="bottom-container">
-            <p id="status">Login status: Waiting for input...</p>
         </div>
     </div>
     
+    <!-- Include QR Code reader library -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- Add jsQR library for processing QR code images -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    
     <script>
-        // Toggle between facial recognition and traditional login
-        document.getElementById('toggle-login-method').addEventListener('click', function() {
-            const facialRecognitionContainer = document.getElementById('facial-recognition-container');
-            const traditionalLoginContainer = document.getElementById('traditional-login-container');
-            const toggleButton = document.getElementById('toggle-login-method');
-            const webcamElement = document.getElementById('webcam');
-            const scanningOverlay = document.getElementById('scanning-overlay');
-            const faceScanIndicator = document.querySelector('.face-scan-indicator');
-            
-            if (traditionalLoginContainer.style.display === 'none' || traditionalLoginContainer.style.display === '') {
-                facialRecognitionContainer.style.display = 'none';
-                traditionalLoginContainer.style.display = 'flex';
-                toggleButton.textContent = 'Switch to Facial Recognition';
-                webcamElement.style.display = 'none';
-                scanningOverlay.style.display = 'none';
-                faceScanIndicator.style.display = 'none';
-                clearInterval(faceDetectionInterval); // Stop face detection
+        // DOM elements
+        const toggleLoginMethodBtn = document.getElementById('toggle-login-method');
+        const qrLoginMethod = document.getElementById('qr-login-method');
+        const manualLoginForm = document.getElementById('manual-login-form');
+        const employeeIdInput = document.getElementById('employee_id');
+        const passwordInput = document.getElementById('password');
+        const errorMessage = document.getElementById('error-message');
+        const qrVideoContainer = document.querySelector('.qr-scanner-container');
+        const scanIndicator = document.querySelector('.scan-indicator');
+        let html5QrCode = null;
+        
+        // Toggle between QR and manual login
+        toggleLoginMethodBtn.addEventListener('click', function() {
+            if (qrLoginMethod.classList.contains('active')) {
+                // Switch to manual login
+                qrLoginMethod.classList.remove('active');
+                manualLoginForm.classList.add('active');
+                toggleLoginMethodBtn.innerHTML = '<i class="fas fa-qrcode"></i> Use QR Code Login';
+                
+                // Stop scanning if active
+                if (html5QrCode && html5QrCode.isScanning) {
+                    html5QrCode.stop().catch(err => console.error("Error stopping scanner:", err));
+                }
             } else {
-                facialRecognitionContainer.style.display = 'block';
-                traditionalLoginContainer.style.display = 'none';
-                toggleButton.textContent = 'Switch to Username/Password';
-                webcamElement.style.display = 'block';
-                scanningOverlay.style.display = 'block';
-                faceScanIndicator.style.display = 'block';
-                initWebcam();
+                // Switch to QR login
+                manualLoginForm.classList.remove('active');
+                qrLoginMethod.classList.add('active');
+                toggleLoginMethodBtn.innerHTML = '<i class="fas fa-keyboard"></i> Use Manual Login';
+                
+                // Restart QR scanner
+                if (html5QrCode && !html5QrCode.isScanning) {
+                    initializeQRScanner();
+                }
             }
         });
-    
-        // Return to the welcome page when the back button is clicked
-        document.getElementById('back-button').addEventListener('click', function() {
-            window.location.href = '../../welcome.php';
-        });
         
-        document.getElementById('back-button-traditional').addEventListener('click', function() {
-            window.location.href = '../../welcome.php';
-        });
-
-        // Redirect to the register page when the register button is clicked
-        document.getElementById('register-button').addEventListener('click', function() {
-            window.location.href = 'register.php';
-        });
-        
-        document.getElementById('register-button-traditional').addEventListener('click', function() {
-            window.location.href = 'register.php';
-            // Automatically switch to traditional registration
-            setTimeout(() => {
-                if (document.getElementById('toggle-login-method')) {
-                    document.getElementById('toggle-login-method').click();
-                }
-            }, 500);
-        });
-
-        // Get elements from the DOM
-        const webcamElement = document.getElementById('webcam');
-        const canvasElement = document.getElementById('canvas');
-        const captureButton = document.getElementById('capture-button');
-        const canvasContext = canvasElement.getContext('2d');
-        let faceDetectionInterval;
-        let processingFace = false;
-        let lastDetectionTime = 0;
-        
-        // Set the minimum time between face detections (in milliseconds)
-        const minTimeBetweenDetections = 3000;
-
-        // Initialize webcam stream
-        function initWebcam() {
-            // First, show a message to the user about webcam permissions
-            document.getElementById('status').textContent = "Please allow camera access when prompted";
-            document.querySelector('.bottom-container').style.display = 'block';
+        // Form validation
+        function validateForm() {
+            let isValid = true;
             
-            // Better error classification
-            navigator.mediaDevices.getUserMedia({ video: true })
-                .then((stream) => {
-                    webcamElement.srcObject = stream;
-                    // Start automatic face detection after webcam is initialized
-                    startFaceDetection();
-                    
-                    // Hide the permission message
-                    setTimeout(() => {
-                        document.querySelector('.bottom-container').style.display = 'none';
-                    }, 1500);
-                })
-                .catch((error) => {
-                    console.error("Error accessing webcam: ", error);
-                    
-                    let errorMessage = "";
-                    
-                    // Provide specific error messages based on the error type
-                    if (error.name === "NotAllowedError") {
-                        errorMessage = "Camera access denied. Please allow camera access in your browser settings and refresh the page.";
-                    } else if (error.name === "NotFoundError") {
-                        errorMessage = "No camera found. Please connect a camera and refresh the page.";
-                    } else if (error.name === "NotReadableError") {
-                        errorMessage = "Camera is in use by another application. Please close other apps using the camera.";
-                    } else {
-                        errorMessage = "Camera error: " + error.message;
-                    }
-                    
-                    // Show error message to user
-                    document.getElementById('status').textContent = errorMessage;
-                    document.querySelector('.bottom-container').style.display = 'block';
-                    document.querySelector('.bottom-container').style.backgroundColor = 'rgba(255, 76, 76, 0.9)';
-                    
-                    // Disable scanning overlay and indicator
-                    document.getElementById('scanning-overlay').style.display = 'none';
-                    document.querySelector('.face-scan-indicator').textContent = "Camera not available";
-                    document.querySelector('.face-scan-indicator').style.backgroundColor = '#FF4C4C';
-                    
-                    // Auto switch to traditional login after delay
-                    setTimeout(() => {
-                        document.getElementById('toggle-login-method').click();
-                    }, 3000);
-                });
+            // Employee ID validation
+            if (employeeIdInput.value.trim() === '') {
+                document.getElementById('employee-id-error').style.display = 'block';
+                employeeIdInput.classList.add('input-error');
+                isValid = false;
+            } else {
+                document.getElementById('employee-id-error').style.display = 'none';
+                employeeIdInput.classList.remove('input-error');
+            }
+            
+            // Password validation
+            if (passwordInput.value.trim() === '') {
+                document.getElementById('password-error').style.display = 'block';
+                passwordInput.classList.add('input-error');
+                isValid = false;
+            } else {
+                document.getElementById('password-error').style.display = 'none';
+                passwordInput.classList.remove('input-error');
+            }
+            
+            return isValid;
         }
         
-        // Start periodic face detection
-        function startFaceDetection() {
-            // Clear any existing interval
-            if (faceDetectionInterval) {
-                clearInterval(faceDetectionInterval);
-            }
+        // Manual login form submission
+        manualLoginForm.addEventListener('submit', function(e) {
+            e.preventDefault();
             
-            // Set face detection to run every 1 second
-            faceDetectionInterval = setInterval(() => {
-                // Only process if not already processing and enough time has passed
-                const currentTime = Date.now();
-                if (!processingFace && (currentTime - lastDetectionTime) >= minTimeBetweenDetections) {
-                    captureAndDetectFace();
+            if (validateForm()) {
+                // Prepare form data for AJAX submission
+                const formData = new FormData(manualLoginForm);
+                formData.append('login_method', 'manual');
+                
+                // AJAX request to login_process.php
+                fetch('login_process.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Redirect to dashboard or home page
+                        window.location.href = data.redirect || '../../welcome.php';
+                    } else {
+                        // Show error message
+                        errorMessage.textContent = data.message || 'Login failed. Please check your credentials.';
+                        errorMessage.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    errorMessage.textContent = 'An error occurred. Please try again later.';
+                    errorMessage.style.display = 'block';
+                });
+            }
+        });
+        
+        // Initialize QR Code Scanner with error handling
+        function initializeQRScanner() {
+            try {
+                // Clear any previous instances
+                if (html5QrCode) {
+                    if (html5QrCode.isScanning) {
+                        html5QrCode.stop().catch(err => console.error("Error stopping scanner:", err));
+                    }
+                    html5QrCode = null;
+                }
+                
+                // Clear scanner container
+                const scannerDiv = document.getElementById('qr-scanner');
+                if (!scannerDiv) {
+                    // Create a new div for the scanner
+                    const newDiv = document.createElement('div');
+                    newDiv.id = 'qr-scanner';
+                    newDiv.style.width = '100%';
+                    newDiv.style.height = '100%';
+                    qrVideoContainer.appendChild(newDiv);
+                }
+                
+                // Create a new instance
+                html5QrCode = new Html5Qrcode("qr-scanner");
+                
+                // Start scanning
+                html5QrCode.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    qrCodeSuccessCallback,
+                    qrCodeErrorCallback
+                ).catch(error => {
+                    console.error("Error starting QR scanner:", error);
+                    handleCameraError(error);
+                });
+            } catch (error) {
+                console.error("Error initializing QR scanner:", error);
+                handleCameraError(error);
+            }
+        }
+        
+        // Handle camera access errors
+        function handleCameraError(error) {
+            // Update UI to show camera error
+            scanIndicator.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Camera unavailable';
+            scanIndicator.style.backgroundColor = 'rgba(255, 94, 98, 0.8)';
+            
+            // Show error message and switch to manual login
+            errorMessage.textContent = 'Camera access error: ' + (error.message || 'Device unavailable or in use by another application');
+            errorMessage.style.display = 'block';
+            
+            // Automatically switch to manual login after a short delay
+            setTimeout(() => {
+                if (qrLoginMethod.classList.contains('active')) {
+                    toggleLoginMethodBtn.click();
                 }
             }, 1000);
         }
         
-        // Capture and detect face automatically
-        function captureAndDetectFace() {
-            if (!webcamElement.videoWidth) return; // Skip if video is not ready
-            
-            processingFace = true;
-            document.querySelector('.face-scan-indicator').textContent = "Processing...";
-            
-            // Set canvas dimensions
-            canvasElement.width = webcamElement.videoWidth;
-            canvasElement.height = webcamElement.videoHeight;
-            
-            // Draw video frame to canvas
-            canvasContext.drawImage(webcamElement, 0, 0, canvasElement.width, canvasElement.height);
-            
-            // Convert to base64
-            const image = canvasElement.toDataURL('image/png');
-            
-            // Send to server for face recognition (without a username)
-            sendImageForRecognition(image.split(',')[1]);
-        }
-
-        // Capture image function (for manual button)
-        function captureImage() {
-            // Set canvas width and height to video element's width and height
-            canvasElement.width = webcamElement.videoWidth;
-            canvasElement.height = webcamElement.videoHeight;
-
-            // Draw the current frame from the video to the canvas
-            canvasContext.drawImage(webcamElement, 0, 0, canvasElement.width, canvasElement.height);
-            
-            // Convert the canvas to a base64-encoded PNG image
-            const image = canvasElement.toDataURL('image/png');
-            
-            // Get username (if available, but not required anymore)
-            const username = document.getElementById('username').value;
-            
-            // Send image for recognition
-            sendImageForRecognition(image.split(',')[1], username);
+        // QR Code success callback
+        function qrCodeSuccessCallback(decodedText) {
+            // Stop scanning
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    // Send QR code data to server for authentication
+                    const formData = new FormData();
+                    formData.append('qr_code_data', decodedText);
+                    formData.append('login_method', 'qr');
+                    
+                    // Show processing message
+                    errorMessage.textContent = 'Processing QR code...';
+                    errorMessage.style.display = 'block';
+                    errorMessage.style.backgroundColor = 'rgba(54, 209, 220, 0.1)';
+                    errorMessage.style.color = '#36D1DC';
+                    errorMessage.style.borderLeftColor = '#36D1DC';
+                    
+                    // AJAX request to login_process.php
+                    fetch('login_process.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Show success message before redirect
+                            errorMessage.textContent = 'Login successful! Redirecting...';
+                            errorMessage.style.backgroundColor = 'rgba(46, 213, 115, 0.1)';
+                            errorMessage.style.color = '#2ed573';
+                            errorMessage.style.borderLeftColor = '#2ed573';
+                            
+                            // Redirect to dashboard or home page after brief delay
+                            setTimeout(() => {
+                                window.location.href = data.redirect || '../../welcome.php';
+                            }, 1000);
+                        } else {
+                            // Show error message
+                            errorMessage.textContent = data.message || 'Invalid QR Code. Please try again.';
+                            errorMessage.style.backgroundColor = 'rgba(255, 94, 98, 0.1)';
+                            errorMessage.style.color = '#ff5e62';
+                            errorMessage.style.borderLeftColor = '#ff5e62';
+                            
+                            // Restart scanning after a delay
+                            setTimeout(initializeQRScanner, 2000);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        errorMessage.textContent = 'An error occurred. Please try again later.';
+                        errorMessage.style.backgroundColor = 'rgba(255, 94, 98, 0.1)';
+                        errorMessage.style.color = '#ff5e62';
+                        errorMessage.style.borderLeftColor = '#ff5e62';
+                        errorMessage.style.display = 'block';
+                        
+                        // Restart scanning
+                        setTimeout(initializeQRScanner, 2000);
+                    });
+                }).catch(err => {
+                    console.error("Error stopping QR scanner:", err);
+                    setTimeout(initializeQRScanner, 2000);
+                });
+            }
         }
         
-        // Function to send image to server for face recognition
-        function sendImageForRecognition(imageBase64, username = null) {
-            // Prepare the data payload to send to the Python script
-            const dataPayload = { 
-                image: imageBase64
-            };
-            
-            // Add username to payload if provided (optional)
-            if (username) {
-                dataPayload.username = username;
+        // QR Code error callback (errors are normal when no QR is detected)
+        function qrCodeErrorCallback(error) {
+            // We can ignore certain errors as they occur when no QR code is in view
+            // Only log them for debugging purposes
+            // console.log(error);
+        }
+        
+        // Initialize QR scanner when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Modify the QR scanner container by removing the video element
+            const videoElement = document.getElementById('qr-video');
+            if (videoElement) {
+                videoElement.parentNode.removeChild(videoElement);
             }
             
-            // Set last detection time to now
-            lastDetectionTime = Date.now();
+            // Create a div for the scanner
+            const scannerDiv = document.createElement('div');
+            scannerDiv.id = 'qr-scanner';
+            scannerDiv.style.width = '100%';
+            scannerDiv.style.height = '100%';
+            qrVideoContainer.appendChild(scannerDiv);
             
-            // Send the image data to the Python script
-            fetch('http://localhost:5000/Face_API/mark-attendance', {
-                method: 'POST',
-                body: JSON.stringify(dataPayload),
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then((response) => response.json())
-            .then((data) => { 
-                console.log("Server response:", data);
+            // Give a slight delay to ensure the DOM is fully loaded
+            setTimeout(initializeQRScanner, 500);
+            
+            // QR Code Upload functionality
+            const qrUploadInput = document.getElementById('qr-upload');
+            const qrUploadStatus = document.getElementById('qr-upload-status');
+            
+            qrUploadInput.addEventListener('change', function(e) {
+                if (!this.files || !this.files[0]) return;
                 
-                // If face recognized successfully
-                if (data.success) {
-                    console.log("Attendance Marked!");
-                    
-                    document.getElementById('status').textContent = data.message;
-                    document.querySelector('.bottom-container').style.backgroundColor = 'rgba(100, 166, 81, 0.9)';
-                    document.querySelector('.bottom-container').style.display = 'block';
-
-                    // Create a form element
-                    const form = document.createElement('form');
-                    form.method = 'POST';
-                    form.action = '/superpack/Capstone2/dashboardnew.php';
-
-                    // Hidden input for username (now the name from DeepFace identification)
-                    const inputName = document.createElement('input');
-                    inputName.type = 'hidden';
-                    inputName.name = 'username';
-                    inputName.value = data.name; // Using 'name' instead of 'username'
-                    form.appendChild(inputName);
-
-                    // Hidden input for role
-                    const inputRole = document.createElement('input');
-                    inputRole.type = 'hidden';
-                    inputRole.name = 'role';
-                    inputRole.value = data.role;
-                    form.appendChild(inputRole);
-
-                    // Hidden input for department
-                    const inputDepartment = document.createElement('input');
-                    inputDepartment.type = 'hidden';
-                    inputDepartment.name = 'user_department';
-                    inputDepartment.value = data.department;
-                    form.appendChild(inputDepartment);
-
-                    // Hidden input for loggedin variable
-                    const inputLoggedIn = document.createElement('input');
-                    inputLoggedIn.type = 'hidden';
-                    inputLoggedIn.name = 'loggedin';
-                    inputLoggedIn.value = true;
-                    form.appendChild(inputLoggedIn);
-
-                    // Append the form to the body
-                    document.body.appendChild(form);
-
-                    // Stop face detection before redirecting
-                    clearInterval(faceDetectionInterval);
-
-                    // Submit the form
-                    form.submit();
-                } else {
-                    console.log("Error: ", data.message);
-                    
-                    document.getElementById('status').textContent = data.message;
-                    document.querySelector('.bottom-container').style.display = 'block';
-                    document.querySelector('.bottom-container').style.backgroundColor = 'rgba(255, 76, 76, 0.9)';
-
-                    // Hide the error message after 2.5 seconds
-                    setTimeout(() => {
-                        document.querySelector('.bottom-container').style.display = 'none';
-                    }, 2500);
-                    
-                    // Reset processing flag
-                    processingFace = false;
-                    document.querySelector('.face-scan-indicator').textContent = "Scanning for face...";
-                }
-            })
-            .catch((error) => {
-                console.error("Error sending image to server: ", error);
+                const file = this.files[0];
                 
-                document.getElementById('status').textContent = "Error connecting to face recognition server.";
-                document.querySelector('.bottom-container').style.display = 'block';
-                document.querySelector('.bottom-container').style.backgroundColor = 'rgba(255, 76, 76, 0.9)';
-
-                setTimeout(() => {
-                    document.querySelector('.bottom-container').style.display = 'none';
-                }, 2500);
+                // Update status
+                qrUploadStatus.textContent = 'Processing QR code...';
+                qrUploadStatus.style.display = 'block';
                 
-                // Reset processing flag
-                processingFace = false;
-                document.querySelector('.face-scan-indicator').textContent = "Scanning for face...";
+                // Create a FileReader to read the image
+                const reader = new FileReader();
+                
+                reader.onload = function(event) {
+                    // Create an image element to load the file
+                    const img = new Image();
+                    img.onload = function() {
+                        try {
+                            // Create a canvas to draw the image
+                            const canvas = document.createElement('canvas');
+                            const context = canvas.getContext('2d');
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                            context.drawImage(img, 0, 0, img.width, img.height);
+                            
+                            // Use the QR code scanner to process the image
+                            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                            
+                            // Try to decode the QR code from the image
+                            const code = jsQR(imageData.data, imageData.width, imageData.height);
+                            
+                            if (code) {
+                                // QR code detected, send data for authentication
+                                qrUploadStatus.textContent = 'QR code found! Authenticating...';
+                                
+                                // Prepare form data
+                                const formData = new FormData();
+                                formData.append('qr_code_data', code.data);
+                                formData.append('login_method', 'qr');
+                                
+                                // Send to server
+                                fetch('login_process.php', {
+                                    method: 'POST',
+                                    body: formData
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        qrUploadStatus.textContent = 'Authentication successful! Redirecting...';
+                                        qrUploadStatus.style.color = '#2ed573';
+                                        
+                                        // Redirect after a short delay
+                                        setTimeout(() => {
+                                            window.location.href = data.redirect || '../../welcome.php';
+                                        }, 1000);
+                                    } else {
+                                        qrUploadStatus.textContent = data.message || 'Invalid QR code. Please try again.';
+                                        qrUploadStatus.style.color = '#ff5e62';
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Error:', error);
+                                    qrUploadStatus.textContent = 'An error occurred. Please try again.';
+                                    qrUploadStatus.style.color = '#ff5e62';
+                                });
+                            } else {
+                                qrUploadStatus.textContent = 'No QR code found in image. Please try another image.';
+                                qrUploadStatus.style.color = '#ff5e62';
+                            }
+                        } catch (error) {
+                            console.error('Error processing image:', error);
+                            qrUploadStatus.textContent = 'Error processing image. Please try again.';
+                            qrUploadStatus.style.color = '#ff5e62';
+                        }
+                    };
+                    
+                    img.onerror = function() {
+                        qrUploadStatus.textContent = 'Error loading image. Please try a different file.';
+                        qrUploadStatus.style.color = '#ff5e62';
+                    };
+                    
+                    // Set the image source to the FileReader result
+                    img.src = event.target.result;
+                };
+                
+                // Read the file as a data URL
+                reader.readAsDataURL(file);
             });
-        }
-
-        // Initialize webcam on page load
-        initWebcam();
-
-        // Capture image when button is clicked (manual fallback)
-        captureButton.addEventListener('click', captureImage);
+        });
     </script>
 </body>
 </html>

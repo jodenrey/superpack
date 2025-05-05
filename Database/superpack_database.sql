@@ -236,7 +236,9 @@ CREATE TABLE `register` (
   `name` varchar(50) NOT NULL,
   `role` varchar(50) NOT NULL,
   `department` text NOT NULL,
-  `landmarks_hash` text NOT NULL
+  `employee_id` varchar(50) NOT NULL UNIQUE,
+  `password` varchar(255) NOT NULL,
+  `qr_code_data` text NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -247,6 +249,7 @@ CREATE TABLE `register` (
 
 CREATE TABLE `users` (
   `id` int(11) NOT NULL,
+  `employee_id` varchar(50) NOT NULL UNIQUE,
   `username` varchar(50) NOT NULL,
   `password` varchar(255) NOT NULL,
   `role` varchar(50) NOT NULL,

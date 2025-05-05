@@ -23,40 +23,48 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-if (isset($_GET['department'])) {
-    $department = $_GET['department'];
-
-    switch ($department) {
-        case 'sales':
-            // Use the sales_tasks table
-            $tasksTable = 'sales_tasks';
-            break;
-        case 'purchasing':
-            // Use the purchasing_tasks table
-            $tasksTable = 'purchasing_tasks';
-            break;
-        case 'proddev':
-            // Use the proddev_tasks table
-            $tasksTable = 'proddev_tasks';
-            break;
-        case 'warehouse':
-            // Use the warehouse_tasks table
-            $tasksTable = 'warehouse_tasks';
-            break;
-        case 'logistics':
-            // Use the logistics_tasks table
-            $tasksTable = 'logistics_tasks';
-            break;
-        case 'accounting':
-            // Use the accounting_tasks table
-            $tasksTable = 'accounting_tasks';
-            break;
-        default:
-            die("Invalid department specified.");
+// Function to map any department to a valid task management department
+function mapToDepartment($inputDepartment) {
+    // Convert to lowercase and remove any extra spaces
+    $dept = strtolower(trim($inputDepartment));
+    
+    // Direct matches
+    $validDepartments = ['sales', 'purchasing', 'proddev', 'warehouse', 'logistics', 'accounting'];
+    
+    // Check for direct match
+    if (in_array($dept, $validDepartments)) {
+        return $dept;
     }
-} else {
-    die("Department not specified.");
+    
+    // Mapping for similar or partial matches
+    if (strpos($dept, 'sale') !== false || strpos($dept, 'market') !== false) {
+        return 'sales';
+    } else if (strpos($dept, 'purchas') !== false || strpos($dept, 'procure') !== false) {
+        return 'purchasing';
+    } else if (strpos($dept, 'prod') !== false || strpos($dept, 'dev') !== false || strpos($dept, 'r&d') !== false) {
+        return 'proddev';
+    } else if (strpos($dept, 'ware') !== false || strpos($dept, 'storage') !== false) {
+        return 'warehouse';
+    } else if (strpos($dept, 'log') !== false || strpos($dept, 'ship') !== false || strpos($dept, 'transport') !== false) {
+        return 'logistics';
+    } else if (strpos($dept, 'account') !== false || strpos($dept, 'financ') !== false) {
+        return 'accounting';
+    }
+    
+    // Default to sales if no match found
+    return 'sales';
 }
+
+if (isset($_GET['department'])) {
+    $inputDepartment = $_GET['department'];
+    $department = mapToDepartment($inputDepartment);
+} else {
+    // If no department is specified, use a default
+    $department = 'sales';
+}
+
+// Set the tasks table based on the mapped department
+$tasksTable = $department . '_tasks';
 
 // Initialize search ID
 $searchId = isset($_GET['search_id']) ? $_GET['search_id'] : '';

@@ -1,7 +1,12 @@
 <?php
 
 $role = isset($_SESSION['role']) ? $_SESSION['role'] : 'Guest';
-$department = isset($_SESSION['user_department']) ? $_SESSION['user_department'] : 'Superpack Enterprise';
+$department = isset($_SESSION['department']) ? $_SESSION['department'] : 
+             (isset($_SESSION['user_department']) ? $_SESSION['user_department'] : 'Superpack Enterprise');
+
+// Get username from session with fallback options
+$username = isset($_SESSION['name']) ? $_SESSION['name'] : 
+           (isset($_SESSION['username']) ? $_SESSION['username'] : 'Guest');
 
 ?>
 <!DOCTYPE html>
@@ -43,7 +48,7 @@ $department = isset($_SESSION['user_department']) ? $_SESSION['user_department']
                         <span class="dropdown-icon"><i class="fas fa-chevron-down"></i></span>
                     </a>
                     <ul class="dropdown-container">
-                        <li><a href="attendance_check.php?username=<?php echo urlencode($_SESSION['username']); ?>">Checking Attendance</a></li>
+                        <li><a href="attendance_check.php?username=<?php echo urlencode($username); ?>">Checking Attendance</a></li>
                         <li><a href="worker_eval.php">Evaluation</a></li>
                         <li><a href="warning_notice.php">Warning Notice</a></li>
                         <li><a href="selection.php">Selection</a></li>
@@ -58,7 +63,7 @@ $department = isset($_SESSION['user_department']) ? $_SESSION['user_department']
                     </a>
                 </li>
                 <li>
-                    <a href="task_management.php?department=<?php echo $department?>">
+                    <a href="task_management.php?department=<?php echo urlencode($department); ?>">
                         <span class="icon"><i class="fas fa-chart-bar"></i></span>
                         <span class="title">Task Management</span>
                     </a>
