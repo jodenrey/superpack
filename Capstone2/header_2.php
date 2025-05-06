@@ -1,9 +1,16 @@
 <?php
-// Get the username from session
-$username = isset($_SESSION['username']) ? $_SESSION['username'] : 'User';
+// Make sure session is started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Check for username in session with multiple fallbacks
+$username = isset($_SESSION['name']) ? $_SESSION['name'] : 
+           (isset($_SESSION['username']) ? $_SESSION['username'] : 'User');
 
 // Get department name from URL or set default
-$department_name = isset($_GET['department']) ? $_GET['department'] : 'Superpack Enterprise';
+$department_name = isset($_GET['department']) ? $_GET['department'] : 
+                  (isset($_SESSION['department']) ? $_SESSION['department'] : 'Superpack Enterprise');
 ?>
 
 <!DOCTYPE html>

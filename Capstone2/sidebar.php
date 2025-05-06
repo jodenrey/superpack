@@ -51,6 +51,15 @@ $username = isset($_SESSION['name']) ? $_SESSION['name'] :
                         <li><a href="attendance_check.php?username=<?php echo urlencode($username); ?>">Checking Attendance</a></li>
                         <li><a href="worker_eval.php">Evaluation</a></li>
                         <li><a href="warning_notice.php">Warning Notice</a></li>
+                    </ul>
+                </li>
+                <li>
+                    <a class="dropdown-btn">
+                        <span class="icon"><i class="fas fa-user-plus"></i></span>
+                        <span class="title">New employee</span>
+                        <span class="dropdown-icon"><i class="fas fa-chevron-down"></i></span>
+                    </a>
+                    <ul class="dropdown-container">
                         <li><a href="selection.php">Selection</a></li>
                         <li><a href="training_management.php">Training Management</a></li>
                         <li><a href="deployment_management.php">Deployment Management</a></li>
@@ -112,7 +121,20 @@ document.addEventListener('DOMContentLoaded', function() {
     var evaluationItem = Array.from(document.querySelectorAll('.big-sidebar ul li a'))
         .find(a => a.textContent.trim().includes('Evaluation'));
     
-    // Select the new modules
+    // Select the "New employee" dropdown <li> itself
+    var newEmployeeDropdown = Array.from(document.querySelectorAll('.big-sidebar ul.big-nav_list > li'))
+        .find(li => {
+            const anchor = li.querySelector('a.dropdown-btn');
+            if (anchor) {
+                const titleSpan = anchor.querySelector('span.title');
+                return titleSpan && titleSpan.textContent.trim() === 'New employee';
+            }
+            return false;
+        });
+
+    // These items are now under the "New employee" dropdown.
+    // Their visibility will be controlled by newEmployeeDropdown.
+    // Their definitions are kept as in the original script for potential other uses.
     var selectionItem = Array.from(document.querySelectorAll('.big-sidebar ul li a'))
         .find(a => a.textContent.trim().includes('Selection'));
     
@@ -127,18 +149,16 @@ document.addEventListener('DOMContentLoaded', function() {
         hideElement(payrollItem);
         hideElement(recruitmentItem);
         hideElement(personnelRecordsItem);
-        hideElement(evaluationItem);
-        hideElement(selectionItem);
-        hideElement(trainingManagementItem);
-        hideElement(deploymentManagementItem);
+        hideElement(evaluationItem); // Hides the <a> tag for Evaluation
+        
+        hideElement(newEmployeeDropdown); // Hide the entire "New employee" dropdown <li>
     } else {
         showElement(payrollItem);
         showElement(recruitmentItem);
         showElement(personnelRecordsItem);
-        showElement(evaluationItem);
-        showElement(selectionItem);
-        showElement(trainingManagementItem);
-        showElement(deploymentManagementItem);
+        showElement(evaluationItem); // Shows the <a> tag for Evaluation
+
+        showElement(newEmployeeDropdown); // Show the entire "New employee" dropdown <li>
     }
 });
 

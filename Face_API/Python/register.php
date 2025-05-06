@@ -275,8 +275,8 @@
                 </div>
                 
                 <form id="register-form">
-                    <input type="text" name="name" id="name" placeholder="Full Name" required>
-                    <div class="validation-error" id="name-error">Please enter your full name</div>
+                    <input type="text" name="name" id="name" placeholder="Full Name" pattern="^[A-Za-z\s]+$" title="Please enter only letters and spaces" oninput="this.value=this.value.replace(/[^A-Za-z\s]/g,'')" required>
+                    <div class="validation-error" id="name-error">Please enter your full name (letters only)</div>
                     
                     <input type="text" name="employee_id" id="employee_id" placeholder="Employee ID" required>
                     <div class="validation-error" id="employee-id-error">Please enter a valid Employee ID</div>

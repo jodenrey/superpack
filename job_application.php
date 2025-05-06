@@ -386,15 +386,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_application'])
                                 <?php endforeach; ?>
                             </select>
                         </div>
-
                         <div class="form-row two-columns">
                             <div class="form-group">
                                 <label for="first_name">First Name</label>
-                                <input type="text" id="first_name" name="first_name" required>
+                                <input type="text" id="first_name" name="first_name" pattern="^[A-Za-z\s]+$" title="Please enter only letters (no numbers or symbols)" oninput="this.value=this.value.replace(/[^A-Za-z\s]/g,'')" required>
                             </div>
                             <div class="form-group">
                                 <label for="last_name">Last Name</label>
-                                <input type="text" id="last_name" name="last_name" required>
+                                <input type="text" id="last_name" name="last_name" pattern="^[A-Za-z\s]+$" title="Please enter only letters (no numbers or symbols)" oninput="this.value=this.value.replace(/[^A-Za-z\s]/g,'')" required>
                             </div>
                         </div>
 
@@ -405,7 +404,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_application'])
                             </div>
                             <div class="form-group">
                                 <label for="phone">Phone Number</label>
-                                <input type="tel" id="phone" name="phone" required>
+                                <input type="tel" id="phone" name="phone" pattern="[0-9]{1,11}" maxlength="11" inputmode="numeric" title="Please enter numbers only (maximum 11 digits)" oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
                             </div>
                         </div>
 
