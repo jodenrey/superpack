@@ -18,7 +18,38 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" ) {
     // File upload handling
     $file_name = isset($_FILES['image']['name']) ? $_FILES['image']['name'] : ''; // Set default value if no image is uploaded
     $tempname = isset($_FILES['image']['tmp_name']) ? $_FILES['image']['tmp_name'] : '';
-    $folder = 'Images/'.$file_name;
+    
+    // Create upload directory if it doesn't exist
+    $uploadDir = '../Capstone2/uploads/profile_pictures/';
+    if (!file_exists($uploadDir)) {
+        mkdir($uploadDir, 0777, true);
+    }
+    
+    // Process file upload if a file was selected
+    if (!empty($file_name) && !empty($tempname)) {
+        $fileInfo = pathinfo($file_name);
+        $extension = strtolower($fileInfo['extension']);
+        
+        // Only allow image files
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+        
+        if (in_array($extension, $allowedExtensions)) {
+            // Generate unique filename
+            $newFileName = strtolower(str_replace(' ', '_', $name)) . '_' . time() . '.' . $extension;
+            $targetFile = $uploadDir . $newFileName;
+            
+            // Move the uploaded file
+            if (move_uploaded_file($tempname, $targetFile)) {
+                $file_name = $newFileName; // Update filename to the new name
+            } else {
+                throw new Exception("Error uploading image file.");
+            }
+        } else {
+            throw new Exception("Invalid file type. Only JPG, JPEG, PNG, and GIF files are allowed.");
+        }
+    } else {
+        $file_name = 'default.png'; // Set default image if none provided
+    }
 
     // Include the database connection file 
     require_once("database.php");
@@ -88,17 +119,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" ) {
         // If everything went well, commit the transaction
         $pdo->commit();
         
-        if ($file_name == '' || move_uploaded_file($tempname, $folder)) {
-            // Successful submission
-            $_SESSION['success_message'] = "New employee added successfully!";
-            echo '<script>alert("New employee added successfully!"); window.location.href = "employee_list.php";</script>';
-            exit; // Exit to prevent further execution
-        } else {
-            // Error handling for file upload
-            $_SESSION['error_message'] = "Error uploading image.";
-            echo '<script>alert("Error uploading image."); window.location.href = "employee_records.php";</script>';
-            exit;
-        }
+        // Successful submission
+        $_SESSION['success_message'] = "New employee added successfully!";
+        echo '<script>alert("New employee added successfully!"); window.location.href = "employee_list.php";</script>';
+        exit; // Exit to prevent further execution
     } catch (Exception $e) {
         // Rollback the transaction if an error occurred
         $pdo->rollBack();

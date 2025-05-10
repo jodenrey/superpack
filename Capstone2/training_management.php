@@ -459,6 +459,18 @@ while ($row = $result->fetch_assoc()) {
         .dropdown-menu {
             min-width: 250px;
             padding: 15px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        /* Fix for dropdown menus in tables with few records */
+        .table-responsive {
+            overflow: visible !important;
+        }
+        
+        .dropdown-menu-end {
+            right: 0;
+            left: auto !important;
         }
         
         .action-buttons button {
@@ -581,7 +593,7 @@ while ($row = $result->fetch_assoc()) {
                 <?php if (empty($candidates)): ?>
                     <div class="alert alert-info">No candidates found matching your criteria.</div>
                 <?php else: ?>
-                    <div class="table-responsive">
+                    <div class="table-responsive" style="overflow: visible">
                         <table class="table table-hover">
                             <thead>
                                 <tr>
@@ -618,10 +630,10 @@ while ($row = $result->fetch_assoc()) {
                                         </td>
                                         <td>
                                             <div class="dropdown">
-                                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside">
                                                     Actions
                                                 </button>
-                                                <ul class="dropdown-menu">
+                                                <ul class="dropdown-menu dropdown-menu-end" data-bs-popper="static">
                                                     <li>
                                                         <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#updateOfferModal<?php echo $candidate['id']; ?>">
                                                             <i class="fas fa-clipboard-check me-2"></i> Update Offer Status
@@ -750,5 +762,36 @@ while ($row = $result->fetch_assoc()) {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Fix for dropdowns in tables with few records
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if the table has only a few rows
+            const tableRows = document.querySelectorAll('.table-hover tbody tr');
+            
+            if (tableRows.length < 5) {
+                // If there are few rows, ensure the table container has enough height
+                const tableContainer = document.querySelector('.table-responsive');
+                if (tableContainer) {
+                    tableContainer.style.minHeight = '400px';
+                }
+                
+                // Add event listeners to dropdowns to ensure they open correctly
+                document.querySelectorAll('.dropdown-toggle').forEach(button => {
+                    button.addEventListener('click', function (e) {
+                        const dropdown = this.nextElementSibling;
+                        
+                        // Calculate if there's enough space below
+                        const buttonRect = this.getBoundingClientRect();
+                        const spaceBelow = window.innerHeight - buttonRect.bottom;
+                        
+                        // If there's not enough space below, add dropup class
+                        if (spaceBelow < 250 && !dropdown.classList.contains('dropdown-menu-up')) {
+                            dropdown.style.transform = 'translate3d(0px, -260px, 0px)';
+                        }
+                    });
+                });
+            }
+        });
+    </script>
 </body>
 </html> 

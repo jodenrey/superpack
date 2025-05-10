@@ -193,7 +193,7 @@ CREATE TABLE `employee_records` (
   `shift` text NOT NULL,
   `salary` text NOT NULL,
   `status` text NOT NULL,
-  `photo` blob,
+  `photo` text,
   `start_date` date NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 

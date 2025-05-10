@@ -294,8 +294,6 @@ session_start();
 </head>
 
 <body>
-    <?php include '../../Capstone2/header.php'; ?>
-    
     <div class="container-all">
         <div class="login-content">
             <!-- Left section with QR scanner -->

@@ -46,7 +46,7 @@ if ($conn->connect_error) {
 }
 
 // Make a query that fetches the total number of employees present today
-$query = "SELECT DISTINCT COUNT(*) AS total FROM attendance";
+$query = "SELECT COUNT(*) AS total FROM register";
 
 // prepare the query
 $stmt = $conn->prepare($query);
@@ -99,7 +99,7 @@ if ($stmt) {
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="dashboardnew.css">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 </head>
 <body>
     
@@ -158,53 +158,35 @@ if ($stmt) {
                                 <div class="info">Check Attendance</div>
                             </div>
                         </div>
-                        <div class="option" onclick="window.location.href='attendance_check.php'" style="cursor: pointer;">
-                            <div class="overview-card purple">
-                                <div class="button-widget-text">Click Here</div>
-                                <div class="info">Leave Requests</div>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>  
             <div class="container-bottom">
                 <div class="container-left">
-                    <div class="graph-container">
+                    <div class="graph-container attendance-record">
                         <?php include 'bar_chart.php'; ?>
                     </div>
 
-                    <div class="graph-container">
+                    <div class="graph-container leave-table">
                         <?php include 'leave_table_widget.php'; ?>
                     </div>
 
-                    <div class="graph-container">
+                    <div class="graph-container employee-table">
                         <?php include 'employee_table_widget.php'; ?>
                     </div>
 
-                    <div class="graph-container">
+                    <div class="graph-container calendar-widget">
                         <?php include 'calendar.php'; ?>
                     </div>
-                </div>
-                <div class="container-right">
-                    <div class="graph-container">
-                        <?php include 'pie_chart.php'; ?>
-                    </div>
-
-                    <div class="graph-container">
-                        <?php include 'treemap.php'; ?>
-                    </div>
-
-                    <div class="graph-container">
-                        <?php include 'pie_chart_employee.php'; ?>
-                    </div>
-            
                 </div>
             </div>
         </div>
     </div>
+    <button class="scroll-to-top" onclick="scrollToTop()" style="display: none;">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+    
     <script>
-        
-
         document.addEventListener('DOMContentLoaded', () => {
             const clock_widget = document.querySelector('.current-time-widget');
             const options = { hour: '2-digit', minute: '2-digit' };
@@ -229,6 +211,12 @@ if ($stmt) {
                 button.style.display = "none";
             }
         };
+        
+        // Function to scroll to top
+        function scrollToTop() {
+            document.body.scrollTop = 0; // For Safari
+            document.documentElement.scrollTop = 0; // For Chrome, Firefox, IE and Opera
+        }
 
         document.addEventListener('DOMContentLoaded', function() {
             // If role is Admin, hide other widgets
@@ -236,31 +224,45 @@ if ($stmt) {
 
             // Select count-employee-total and its parent
             var countEmployeeTotal = document.querySelector('.count-employee-total');
-            var countEmployeeTotalParent = countEmployeeTotal.parentElement;
+            var countEmployeeTotalParent = countEmployeeTotal ? countEmployeeTotal.parentElement : null;
 
-
-            // Select fourth graph-container
+            // Select graph containers
             var pieContainer = document.querySelectorAll('.graph-container')[4];
-            
-            // Select fifth graph-container
             var treemapContainer = document.querySelectorAll('.graph-container')[5];
-
             var employeeContainer = document.querySelectorAll('.graph-container')[2];
-
             var employeepieContainer = document.querySelectorAll('.graph-container')[6];
 
-            if (role !== 'Admin') {
+            if (role !== 'Admin' && countEmployeeTotalParent) {
                 countEmployeeTotalParent.style.display = 'none';
-                pieContainer.style.display = 'none';
-                treemapContainer.style.display = 'none';
-                employeeContainer.style.display = 'none';
-                
+                if (pieContainer) pieContainer.style.display = 'none';
+                if (treemapContainer) treemapContainer.style.display = 'none';
+                if (employeeContainer) employeeContainer.style.display = 'none';
+                if (employeepieContainer) employeepieContainer.style.display = 'block';
             } else {
-                countEmployeeTotalParent.style.display = 'block';
-                pieContainer.style.display = 'block';
-                treemapContainer.style.display = 'block';
-                employeepieContainer.style.display = 'none';
+                if (countEmployeeTotalParent) countEmployeeTotalParent.style.display = 'block';
+                if (pieContainer) pieContainer.style.display = 'none';
+                if (treemapContainer) treemapContainer.style.display = 'none';
+                if (employeeContainer) employeeContainer.style.display = 'block';
+                if (employeepieContainer) employeepieContainer.style.display = 'none';
             }
+            
+            // Handle responsive behaviors for tables and charts
+            function handleResponsiveTables() {
+                const tables = document.querySelectorAll('.table');
+                if (window.innerWidth < 768) {
+                    tables.forEach(table => {
+                        table.classList.add('table-responsive');
+                    });
+                } else {
+                    tables.forEach(table => {
+                        table.classList.remove('table-responsive');
+                    });
+                }
+            }
+            
+            // Run on load and resize
+            handleResponsiveTables();
+            window.addEventListener('resize', handleResponsiveTables);
         });
     </script>
 </body>

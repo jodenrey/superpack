@@ -147,8 +147,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Get existing warnings for the warning history tab
-$warningsQuery = "SELECT * FROM warning_notices ORDER BY warning_date DESC";
+$warningsQuery = "SELECT * FROM warning_notices";
+
+// If user is not admin, only show warnings for the current user
+if ($role !== 'Admin') {
+    // Get current logged in username
+    $current_username = isset($_SESSION['name']) ? $_SESSION['name'] : 
+                       (isset($_SESSION['username']) ? $_SESSION['username'] : '');
+    
+    // Only show warnings for the current employee
+    $warningsQuery .= " WHERE employee_name LIKE ?";
+    $stmt = $conn->prepare($warningsQuery);
+    $searchPattern = "%" . $current_username . "%";
+    $stmt->bind_param("s", $searchPattern);
+    $stmt->execute();
+    $warningsResult = $stmt->get_result();
+} else {
+    // Admin can see all warnings
+    $warningsQuery .= " ORDER BY warning_date DESC";
 $warningsResult = $conn->query($warningsQuery);
+}
+
 $warnings = [];
 if ($warningsResult) {
     $warnings = $warningsResult->fetch_all(MYSQLI_ASSOC);
@@ -340,16 +359,23 @@ if ($warningsResult) {
                     
                     <!-- Nav tabs -->
                     <ul class="nav nav-tabs" role="tablist">
+                        <?php if ($role === 'Admin'): ?>
                         <li class="nav-item">
                             <a class="nav-link active" data-toggle="tab" href="#employeesTab">Employees</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" data-toggle="tab" href="#warningsTab">Warning History</a>
                         </li>
+                        <?php else: ?>
+                        <li class="nav-item">
+                            <a class="nav-link active" data-toggle="tab" href="#warningsTab">My Warnings</a>
+                        </li>
+                        <?php endif; ?>
                     </ul>
                     
                     <!-- Tab content -->
                     <div class="tab-content">
+                        <?php if ($role === 'Admin'): ?>
                         <div id="employeesTab" class="tab-pane active">
                             <div class="tool-bar">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -404,6 +430,9 @@ if ($warningsResult) {
                         </div>
                         
                         <div id="warningsTab" class="tab-pane fade">
+                        <?php else: ?>
+                        <div id="warningsTab" class="tab-pane active">
+                        <?php endif; ?>
                             <div class="table-container">
                                 <table class="table table-bordered table-striped">
                                     <thead>
@@ -693,17 +722,124 @@ if ($warningsResult) {
         
         // View warning details
         function viewWarningDetails(id) {
-            // In a real implementation, you would fetch the warning details from the database
-            // For now, show placeholder content
+            // Show loading message
             document.getElementById('warningDetails').innerHTML = `
-                <div class="text-center p-5">
-                    <h3>Warning Notice #${id}</h3>
-                    <p>Loading warning notice details...</p>
-                    <p><em>In a production environment, this would display the full warning notice details.</em></p>
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                    <p>Loading warning details...</p>
                 </div>
             `;
             
+            // Show the modal first
             $('#warningDetailsModal').modal('show');
+            
+            // Fetch warning details using AJAX
+            fetch(`get_warning_details.php?id=${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Format date
+                        const warningDate = new Date(data.warning.date_of_warning);
+                        const formattedDate = warningDate.toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                        });
+                        
+                        // Format violations
+                        const violations = [];
+                        if (data.warning.violation_attendance == 1) violations.push('Attendance');
+                        if (data.warning.violation_procedures == 1) violations.push('Failure to Follow Procedures');
+                        if (data.warning.violation_insubordination == 1) violations.push('Insubordination');
+                        if (data.warning.violation_carelessness == 1) violations.push('Carelessness');
+                        if (data.warning.violation_company_policies == 1) violations.push('Violation of Company Policies');
+                        if (data.warning.violation_damage == 1) violations.push('Damage to Equipment');
+                        if (data.warning.violation_other) violations.push(`Other: ${data.warning.violation_other}`);
+                        
+                        // Format consequences
+                        const consequences = [];
+                        if (data.warning.consequence_verbal == 1) consequences.push('Verbal Warning');
+                        if (data.warning.consequence_written == 1) consequences.push('Written Warning');
+                        if (data.warning.consequence_probation == 1) consequences.push('Probation');
+                        if (data.warning.consequence_suspension == 1) consequences.push('Suspension');
+                        if (data.warning.consequence_dismissal == 1) consequences.push('Dismissal');
+                        if (data.warning.consequence_other) consequences.push(`Other: ${data.warning.consequence_other}`);
+                        
+                        // Create warning display HTML
+                        document.getElementById('warningDetails').innerHTML = `
+                            <div class="p-3">
+                                <div class="row mb-4">
+                                    <div class="col-12 text-center p-3 bg-primary text-white">
+                                        <h3>EMPLOYEE WARNING NOTICE</h3>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <p><strong>Employee:</strong> ${data.warning.employee_name}</p>
+                                        <p><strong>Department:</strong> ${data.warning.department}</p>
+                                        <p><strong>Location:</strong> ${data.warning.location}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>Date:</strong> ${formattedDate}</p>
+                                        <p><strong>Warning Level:</strong> <span class="badge ${getWarningBadgeClass(data.warning.warning_level)}">${data.warning.warning_level}</span></p>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3 p-2 border rounded">
+                                    <h5>Type of Violation:</h5>
+                                    <p>${violations.join(', ') || 'None specified'}</p>
+                                </div>
+                                
+                                <div class="mb-3 p-2 border rounded">
+                                    <h5>Employer's Statement:</h5>
+                                    <p>${data.warning.employer_statement}</p>
+                                </div>
+                                
+                                <div class="mb-3 p-2 border rounded">
+                                    <h5>Employee's Statement:</h5>
+                                    <p>${data.warning.employee_statement || 'No statement provided'}</p>
+                                </div>
+                                
+                                <div class="mb-3 p-2 border rounded">
+                                    <h5>Consequences:</h5>
+                                    <p>${consequences.join(', ') || 'None specified'}</p>
+                                </div>
+                                
+                                <div class="text-right mt-3">
+                                    <p>Employee Initials: ${data.warning.employee_initials || 'Not signed'}</p>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        document.getElementById('warningDetails').innerHTML = `
+                            <div class="alert alert-danger">
+                                <p>Error loading warning details: ${data.message}</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('warningDetails').innerHTML = `
+                        <div class="alert alert-danger">
+                            <p>Error: Unable to load warning details. Please try again later.</p>
+                            <p>If this page is in development, please create the get_warning_details.php file to handle API requests.</p>
+                        </div>
+                    `;
+                });
+        }
+        
+        // Helper function to get badge class for warning level
+        function getWarningBadgeClass(warningLevel) {
+            switch(warningLevel) {
+                case '1st Warning': return 'bg-warning text-dark';
+                case '2nd Warning': return 'bg-orange text-white';
+                case '3rd Warning': return 'bg-danger text-white';
+                default: return 'bg-secondary text-white';
+            }
         }
         
         // Print warning notice from the form

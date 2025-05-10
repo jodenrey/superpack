@@ -127,6 +127,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_application'])
         
         if ($stmt->execute()) {
             $applicationSubmitted = true;
+            
+            // Create notification for admin
+            $applicationId = $conn->insert_id;
+            $positionName = '';
+            
+            // Get position name for the notification
+            $posQuery = $conn->prepare("SELECT title FROM job_positions WHERE id = ?");
+            $posQuery->bind_param("i", $_POST['position_id']);
+            $posQuery->execute();
+            $posResult = $posQuery->get_result();
+            if ($posResult->num_rows > 0) {
+                $posData = $posResult->fetch_assoc();
+                $positionName = $posData['title'];
+            }
+            
+            // Create notifications table if it doesn't exist
+            $createNotificationsTable = "CREATE TABLE IF NOT EXISTS notifications (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                type VARCHAR(50) NOT NULL,
+                message TEXT NOT NULL,
+                link VARCHAR(255) NOT NULL,
+                is_read TINYINT(1) DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )";
+            $conn->query($createNotificationsTable);
+            
+            // Add notification
+            $notifyStmt = $conn->prepare("INSERT INTO notifications (type, message, link) VALUES (?, ?, ?)");
+            $type = "job_application";
+            $message = "New job application from " . $_POST['first_name'] . " " . $_POST['last_name'] . " for " . $positionName . " position";
+            $link = "Capstone2/selection.php";
+            $notifyStmt->bind_param("sss", $type, $message, $link);
+            $notifyStmt->execute();
         } else {
             $errorMessage = "Error submitting application: " . $stmt->error;
         }
@@ -141,317 +174,616 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_application'])
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Career Opportunities - SuperPack Enterprise</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --primary: #4361ee;
+            --primary-dark: #3a56d4;
+            --secondary: #7209b7;
+            --accent: #4cc9f0;
+            --success: #2ec4b6;
+            --warning: #ff9f1c;
+            --danger: #e71d36;
+            --gray-100: #f8f9fa;
+            --gray-200: #e9ecef;
+            --gray-300: #dee2e6;
+            --gray-400: #ced4da;
+            --gray-500: #adb5bd;
+            --gray-600: #6c757d;
+            --gray-700: #495057;
+            --gray-800: #343a40;
+            --gray-900: #212529;
+            --white: #ffffff;
+            --transition: all 0.3s ease;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+            --shadow: 0 4px 6px rgba(0,0,0,0.1);
+            --shadow-md: 0 6px 12px rgba(67, 97, 238, 0.15);
+            --shadow-lg: 0 15px 25px rgba(67, 97, 238, 0.2);
+            --radius-sm: 4px;
+            --radius: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --header-height: 70px;
+        }
+        
         *, *::before, *::after {
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
         
         body {
-            font-family: 'Poppins', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f8f9fa;
-            color: #333;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--gray-100);
+            color: var(--gray-800);
             line-height: 1.6;
         }
         
-        header {
-            background: linear-gradient(135deg, #3a7bd5, #00d2ff);
+        /* Layout */
+        .app-container {
+            min-height: 100vh;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+        }
+        
+        /* Header styles */
+        .careers-header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
             color: white;
-            padding: 2rem 0;
-            text-align: center;
+            padding: 3rem 0 5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .careers-header::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url('data:image/svg+xml;utf8,<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="25" fill="rgba(255,255,255,0.1)"/></svg>');
+            background-size: 150px 150px;
+            opacity: 0.5;
         }
         
         .header-content {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 0 20px;
+            padding: 0 2rem;
+            position: relative;
+            z-index: 1;
+            text-align: center;
         }
         
-        .logo {
-            font-size: 2rem;
+        .page-title {
+            font-size: 2.5rem;
             font-weight: 700;
             margin-bottom: 1rem;
         }
         
-        h1 {
-            font-size: 2.5rem;
-            margin: 0;
+        .page-subtitle {
+            font-size: 1.25rem;
+            font-weight: 400;
+            max-width: 800px;
+            margin: 0 auto;
+            opacity: 0.9;
         }
         
-        .container {
+        /* Main content */
+        .main-content {
             max-width: 1200px;
-            margin: 2rem auto;
-            padding: 0 20px;
+            margin: -3rem auto 3rem;
+            padding: 0 2rem;
+            position: relative;
+            z-index: 2;
         }
         
+        /* Job positions section */
         .job-positions {
-            margin-bottom: 3rem;
+            margin-bottom: 4rem;
+        }
+        
+        .section-title {
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: var(--gray-800);
         }
         
         .positions-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-            margin-top: 2rem;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
         }
         
         .position-card {
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            background-color: var(--white);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow);
             padding: 1.5rem;
-            transition: transform 0.3s ease;
+            transition: var(--transition);
+            border-left: 4px solid var(--primary);
         }
         
         .position-card:hover {
             transform: translateY(-5px);
+            box-shadow: var(--shadow-md);
         }
         
         .position-card h3 {
             margin-top: 0;
-            color: #3a7bd5;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+            font-size: 1.25rem;
         }
         
-        .position-card p.department {
-            font-size: 0.9rem;
-            color: #666;
+        .position-card .department {
+            display: inline-block;
+            background-color: var(--gray-100);
+            color: var(--gray-700);
+            padding: 0.25rem 0.75rem;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
             margin-bottom: 1rem;
         }
         
-        .position-card p.description {
-            margin-bottom: 1.5rem;
+        .position-card .description {
+            margin-bottom: 1.25rem;
+            color: var(--gray-700);
         }
         
-        .application-form {
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        .position-card .requirements {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--gray-200);
+            font-size: 0.9rem;
+            color: var(--gray-600);
+        }
+        
+        .position-card .requirements-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--gray-700);
+        }
+        
+        /* Application form section */
+        .application-form-container {
+            background-color: var(--white);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
             padding: 2rem;
-            margin-top: 2rem;
+            margin-bottom: 3rem;
         }
         
-        .form-row {
-            margin-bottom: 1.5rem;
+        .form-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--gray-200);
+            color: var(--gray-800);
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+        
+        .form-full-width {
+            grid-column: 1 / -1;
         }
         
         .form-group {
-            margin-bottom: 1rem;
+            margin-bottom: 1.25rem;
         }
         
-        label {
+        .form-label {
             display: block;
             margin-bottom: 0.5rem;
             font-weight: 500;
+            color: var(--gray-700);
         }
         
-        input, select, textarea {
+        .form-control {
             width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--gray-300);
+            border-radius: var(--radius);
             font-family: inherit;
             font-size: 1rem;
+            color: var(--gray-800);
+            transition: var(--transition);
         }
         
-        .two-columns {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
         }
         
-        .submit-button {
-            background: linear-gradient(135deg, #3a7bd5, #00d2ff);
+        .form-select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--gray-300);
+            border-radius: var(--radius);
+            font-family: inherit;
+            font-size: 1rem;
+            color: var(--gray-800);
+            transition: var(--transition);
+            background-color: var(--white);
+            cursor: pointer;
+        }
+        
+        .form-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
+        }
+        
+        .form-textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        
+        .file-input-container {
+            position: relative;
+        }
+        
+        .file-input-label {
+            display: block;
+            padding: 0.75rem 1rem;
+            background-color: var(--gray-100);
+            border: 1px dashed var(--gray-400);
+            border-radius: var(--radius);
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        
+        .file-input-label:hover {
+            background-color: var(--gray-200);
+        }
+        
+        .file-input-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+        
+        .file-input {
+            position: absolute;
+            width: 0;
+            height: 0;
+            opacity: 0;
+        }
+        
+        .form-radio-group {
+            display: flex;
+            gap: 1.5rem;
+        }
+        
+        .form-radio-item {
+            display: flex;
+            align-items: center;
+        }
+        
+        .form-radio {
+            margin-right: 0.5rem;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background-color: var(--primary);
             color: white;
             border: none;
-            padding: 1rem 2rem;
-            border-radius: 5px;
+            border-radius: var(--radius);
             font-size: 1rem;
-            font-weight: 600;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: var(--transition);
+            text-align: center;
         }
         
-        .submit-button:hover {
-            background: linear-gradient(135deg, #3272c5, #00b8e0);
+        .btn:hover {
+            background-color: var(--primary-dark);
             transform: translateY(-2px);
         }
         
+        .btn-lg {
+            padding: 1rem 2rem;
+            font-size: 1.125rem;
+        }
+        
+        .btn-secondary {
+            background-color: var(--gray-200);
+            color: var(--gray-800);
+        }
+        
+        .btn-secondary:hover {
+            background-color: var(--gray-300);
+        }
+        
+        .form-actions {
+            margin-top: 2rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+        
+        /* Success message */
         .success-message {
-            background-color: #d4edda;
-            color: #155724;
-            padding: 1rem;
-            border-radius: 5px;
-            margin-bottom: 1.5rem;
-            text-align: center;
+            background-color: rgba(46, 196, 182, 0.1);
+            border: 1px solid var(--success);
+            color: var(--success);
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
         }
         
+        .success-icon {
+            font-size: 2rem;
+            margin-right: 1rem;
+        }
+        
+        /* Error message */
         .error-message {
-            background-color: #f8d7da;
-            color: #721c24;
+            background-color: rgba(231, 29, 54, 0.1);
+            border: 1px solid var(--danger);
+            color: var(--danger);
             padding: 1rem;
-            border-radius: 5px;
+            border-radius: var(--radius);
             margin-bottom: 1.5rem;
+        }
+        
+        /* Footer */
+        .page-footer {
+            background-color: var(--gray-800);
+            color: var(--gray-300);
+            padding: 3rem 0;
+        }
+        
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
             text-align: center;
         }
         
-        .home-link {
-            display: inline-block;
-            margin-top: 1rem;
-            color: #3a7bd5;
+        .footer-logo {
+            margin-bottom: 1.5rem;
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .footer-link {
+            color: var(--gray-300);
             text-decoration: none;
-            font-weight: 500;
+            transition: var(--transition);
         }
         
-        .home-link:hover {
-            text-decoration: underline;
+        .footer-link:hover {
+            color: var(--white);
         }
         
-        footer {
-            background-color: #333;
-            color: white;
-            text-align: center;
-            padding: 2rem 0;
-            margin-top: 3rem;
+        .footer-copyright {
+            font-size: 0.875rem;
+            color: var(--gray-500);
         }
         
+        /* Responsive */
         @media (max-width: 768px) {
-            .two-columns {
+            .form-grid {
                 grid-template-columns: 1fr;
             }
             
             .positions-grid {
                 grid-template-columns: 1fr;
             }
+            
+            .careers-header {
+                padding: 2rem 0 4rem;
+            }
+            
+            .page-title {
+                font-size: 2rem;
+            }
+            
+            .main-content {
+                margin-top: -2rem;
+            }
+            
+            .form-actions {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+            
+            .footer-links {
+                flex-direction: column;
+                gap: 1rem;
+            }
         }
     </style>
 </head>
 <body>
-    <header>
-        <div class="header-content">
-            <div class="logo">
-                <i class="fas fa-box-open"></i> SuperPack Enterprise
+    <div class="app-container">
+        <div class="careers-header">
+            <div class="header-content">
+                <h1 class="page-title">Career Opportunities</h1>
+                <p class="page-subtitle">Join our team and be part of a company that values innovation, growth, and excellence. Explore our open positions and find the perfect fit for your career.</p>
             </div>
-            <h1>Career Opportunities</h1>
-            <p>Join our team and grow with us</p>
         </div>
-    </header>
-
-    <div class="container">
-        <?php if ($applicationSubmitted): ?>
-            <div class="success-message">
-                <h2>Application Submitted Successfully!</h2>
-                <p>Thank you for your interest in joining SuperPack Enterprise. We have received your application and will review it shortly.</p>
-                <p>Our HR team will contact you if your qualifications match our requirements.</p>
-                <a href="welcome.php" class="home-link"><i class="fas fa-arrow-left"></i> Return to Home Page</a>
-            </div>
-        <?php else: ?>
-            <?php if (!empty($errorMessage)): ?>
-                <div class="error-message">
-                    <p><?php echo $errorMessage; ?></p>
+        
+        <div class="main-content">
+            <?php if ($applicationSubmitted): ?>
+                <div class="success-message">
+                    <div class="success-icon"><i class="fas fa-check-circle"></i></div>
+                    <div>
+                        <h3>Application Submitted Successfully!</h3>
+                        <p>Thank you for your interest in joining SuperPack Enterprise. We have received your application and will review it shortly. You will be contacted if your qualifications match our requirements.</p>
+                    </div>
                 </div>
             <?php endif; ?>
-
-            <section class="job-positions">
-                <h2>Available Positions</h2>
+            
+            <div class="job-positions">
+                <h2 class="section-title">Open Positions</h2>
+                
                 <div class="positions-grid">
-                    <?php foreach ($positions as $position): ?>
+                    <?php foreach ($positions as $position): 
+                        // Fetch full position details
+                        $detailsQuery = $conn->prepare("SELECT * FROM job_positions WHERE id = ?");
+                        $detailsQuery->bind_param("i", $position['id']);
+                        $detailsQuery->execute();
+                        $result = $detailsQuery->get_result();
+                        $posDetails = $result->fetch_assoc();
+                    ?>
                         <div class="position-card">
                             <h3><?php echo htmlspecialchars($position['title']); ?></h3>
-                            <p class="department"><i class="fas fa-building"></i> <?php echo htmlspecialchars($position['department']); ?></p>
-                            <p class="description">
-                                <?php
-                                    $positionDetails = $conn->query("SELECT description FROM job_positions WHERE id = " . $position['id'])->fetch_assoc();
-                                    echo nl2br(htmlspecialchars($positionDetails['description']));
-                                ?>
-                            </p>
+                            <p class="department"><?php echo htmlspecialchars($position['department']); ?></p>
+                            <p class="description"><?php echo htmlspecialchars($posDetails['description']); ?></p>
+                            <div class="requirements">
+                                <p class="requirements-title">Requirements:</p>
+                                <p><?php echo htmlspecialchars($posDetails['requirements']); ?></p>
+                            </div>
                         </div>
                     <?php endforeach; ?>
                 </div>
-            </section>
-
-            <section id="apply">
-                <h2>Apply Now</h2>
-                <div class="application-form">
-                    <form action="job_application.php" method="post" enctype="multipart/form-data">
+            </div>
+            
+            <div class="application-form-container">
+                <h2 class="form-title">Apply Now</h2>
+                
+                <?php if (!empty($errorMessage)): ?>
+                    <div class="error-message">
+                        <p><?php echo htmlspecialchars($errorMessage); ?></p>
+                    </div>
+                <?php endif; ?>
+                
+                <form action="job_application.php" method="post" enctype="multipart/form-data">
+                    <div class="form-grid">
                         <div class="form-group">
-                            <label for="position_id">Position Applying For</label>
-                            <select id="position_id" name="position_id" required>
+                            <label for="position_id" class="form-label">Position</label>
+                            <select name="position_id" id="position_id" class="form-select" required>
                                 <option value="">Select a position</option>
                                 <?php foreach ($positions as $position): ?>
-                                    <option value="<?php echo $position['id']; ?>">
-                                        <?php echo htmlspecialchars($position['title'] . ' (' . $position['department'] . ')'); ?>
-                                    </option>
+                                    <option value="<?php echo $position['id']; ?>"><?php echo htmlspecialchars($position['title']) . ' (' . htmlspecialchars($position['department']) . ')'; ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="form-row two-columns">
-                            <div class="form-group">
-                                <label for="first_name">First Name</label>
-                                <input type="text" id="first_name" name="first_name" pattern="^[A-Za-z\s]+$" title="Please enter only letters (no numbers or symbols)" oninput="this.value=this.value.replace(/[^A-Za-z\s]/g,'')" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="last_name">Last Name</label>
-                                <input type="text" id="last_name" name="last_name" pattern="^[A-Za-z\s]+$" title="Please enter only letters (no numbers or symbols)" oninput="this.value=this.value.replace(/[^A-Za-z\s]/g,'')" required>
-                            </div>
-                        </div>
-
-                        <div class="form-row two-columns">
-                            <div class="form-group">
-                                <label for="email">Email Address</label>
-                                <input type="email" id="email" name="email" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="phone">Phone Number</label>
-                                <input type="tel" id="phone" name="phone" pattern="[0-9]{1,11}" maxlength="11" inputmode="numeric" title="Please enter numbers only (maximum 11 digits)" oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
+                        
+                        <div class="form-group">
+                            <label for="gender" class="form-label">Gender</label>
+                            <div class="form-radio-group">
+                                <div class="form-radio-item">
+                                    <input type="radio" name="gender" id="gender_male" value="Male" class="form-radio" required>
+                                    <label for="gender_male">Male</label>
+                                </div>
+                                <div class="form-radio-item">
+                                    <input type="radio" name="gender" id="gender_female" value="Female" class="form-radio">
+                                    <label for="gender_female">Female</label>
+                                </div>
+                                <div class="form-radio-item">
+                                    <input type="radio" name="gender" id="gender_other" value="Other" class="form-radio">
+                                    <label for="gender_other">Other</label>
+                                </div>
                             </div>
                         </div>
-
+                        
                         <div class="form-group">
-                            <label for="address">Address</label>
-                            <textarea id="address" name="address" rows="3" required></textarea>
+                            <label for="first_name" class="form-label">First Name</label>
+                            <input type="text" name="first_name" id="first_name" class="form-control" required>
                         </div>
-
+                        
                         <div class="form-group">
-                            <label for="gender">Gender</label>
-                            <select id="gender" name="gender" required>
-                                <option value="">Select gender</option>
-                                <option value="Male">Male</option>
-                                <option value="Female">Female</option>
-                                <option value="Other">Other</option>
-                            </select>
+                            <label for="last_name" class="form-label">Last Name</label>
+                            <input type="text" name="last_name" id="last_name" class="form-control" required>
                         </div>
-
+                        
                         <div class="form-group">
-                            <label for="education">Educational Background</label>
-                            <textarea id="education" name="education" rows="4" required placeholder="Please list your educational qualifications, including degrees, institutions, and graduation years."></textarea>
+                            <label for="email" class="form-label">Email Address</label>
+                            <input type="email" name="email" id="email" class="form-control" required>
                         </div>
-
+                        
                         <div class="form-group">
-                            <label for="experience">Work Experience</label>
-                            <textarea id="experience" name="experience" rows="4" placeholder="Please describe your relevant work experience including company names, positions, and duration."></textarea>
+                            <label for="phone" class="form-label">Phone Number</label>
+                            <input type="tel" name="phone" id="phone" class="form-control" required>
                         </div>
-
+                        
+                        <div class="form-group form-full-width">
+                            <label for="address" class="form-label">Address</label>
+                            <textarea name="address" id="address" class="form-control" required></textarea>
+                        </div>
+                        
                         <div class="form-group">
-                            <label for="resume">Upload Resume (PDF, DOC, or DOCX)</label>
-                            <input type="file" id="resume" name="resume" accept=".pdf,.doc,.docx">
+                            <label for="education" class="form-label">Education</label>
+                            <textarea name="education" id="education" class="form-control form-textarea" required></textarea>
                         </div>
-
-                        <div class="form-group" style="margin-top: 2rem;">
-                            <button type="submit" name="submit_application" class="submit-button">
-                                <i class="fas fa-paper-plane"></i> Submit Application
-                            </button>
+                        
+                        <div class="form-group">
+                            <label for="experience" class="form-label">Work Experience</label>
+                            <textarea name="experience" id="experience" class="form-control form-textarea" required></textarea>
                         </div>
-                    </form>
+                        
+                        <div class="form-group form-full-width">
+                            <label for="resume" class="form-label">Resume/CV</label>
+                            <div class="file-input-container">
+                                <label class="file-input-label">
+                                    <span class="file-input-icon"><i class="fas fa-file-upload"></i></span>
+                                    <span id="file-name">Click or drag to upload your resume (PDF, DOC, DOCX)</span>
+                                    <input type="file" name="resume" id="resume" class="file-input" accept=".pdf,.doc,.docx">
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <a href="welcome.php" class="btn btn-secondary">Back to Home</a>
+                        <button type="submit" name="submit_application" class="btn btn-lg">Submit Application</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <footer class="page-footer">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <i class="fas fa-box-open fa-2x"></i>
+                    <h3>SuperPack Enterprise</h3>
                 </div>
-            </section>
-        <?php endif; ?>
+                
+                <div class="footer-links">
+                    <a href="#" class="footer-link">Home</a>
+                    <a href="#" class="footer-link">About Us</a>
+                    <a href="#" class="footer-link">Services</a>
+                    <a href="#" class="footer-link">Contact</a>
+                    <a href="#" class="footer-link">Privacy Policy</a>
+                </div>
+                
+                <div class="footer-copyright">
+                    <p>&copy; 2025 SuperPack Enterprise. All rights reserved.</p>
+                </div>
+            </div>
+        </footer>
     </div>
-
-    <footer>
-        <p>&copy; 2025 SuperPack Enterprise. All rights reserved.</p>
-        <a href="welcome.php" class="home-link"><i class="fas fa-arrow-left"></i> Return to Home Page</a>
-    </footer>
+    
+    <script>
+        // Display selected file name
+        document.getElementById('resume').addEventListener('change', function() {
+            var fileName = this.files[0] ? this.files[0].name : 'Click or drag to upload your resume (PDF, DOC, DOCX)';
+            document.getElementById('file-name').textContent = fileName;
+        });
+    </script>
 </body>
 </html> 

@@ -12,7 +12,8 @@ if (!isset($_SESSION['loggedin'])) {
     exit();
 }
 
-$username = isset($_SESSION['username']) ? $_SESSION['username'] : 'Guest';
+// Get the correct username from session
+$username = isset($_SESSION['name']) ? $_SESSION['name'] : 'Guest';
 
 $host = "localhost";
 $user = "root";
@@ -26,6 +27,18 @@ $conn = new mysqli($host, $user, $password, $database, $port);
 // Check connection
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
+}
+
+// Check if evaluator column exists, if not add it
+$checkEvaluatorColumn = $conn->query("SHOW COLUMNS FROM worker_evaluations LIKE 'evaluator'");
+if ($checkEvaluatorColumn->num_rows === 0) {
+    // Column doesn't exist, add it
+    $addColumnQuery = "ALTER TABLE worker_evaluations ADD COLUMN evaluator VARCHAR(255) DEFAULT 'Unknown'";
+    if ($conn->query($addColumnQuery)) {
+        echo "<div class='alert alert-success'>Added 'evaluator' column to track which admin performed each evaluation.</div>";
+    } else {
+        echo "<div class='alert alert-danger'>Error adding evaluator column: " . $conn->error . "</div>";
+    }
 }
 
 // Initialize variables
@@ -81,13 +94,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             "start_date" => $_POST['start_date'],
             "comments" => $_POST['comments'],
             // Sum the first 10 criteria ratings, assuming they're named 'criteria_1' to 'criteria_10' in the form
-            "performance" => array_sum(array_map('intval', array_slice($_POST, array_search('criteria_1', array_keys($_POST)), 10)))
+            "performance" => array_sum(array_map('intval', array_slice($_POST, array_search('criteria_1', array_keys($_POST)), 10))),
+            "evaluator" => $username // Add the current admin username as the evaluator
         ];
 
         // Insert new evaluation into the database
-        $stmt = $conn->prepare("INSERT INTO worker_evaluations (id, employee_id, name, position, department, start_date, comments, performance) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO worker_evaluations (id, employee_id, name, position, department, start_date, comments, performance, evaluator) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
         $stmt->bind_param(
-            "sssssssi",
+            "sssssssis",
             $newEvaluation['id'],
             $newEvaluation['employee_id'],
             $newEvaluation['name'],
@@ -95,41 +109,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $newEvaluation['department'],
             $newEvaluation['start_date'],
             $newEvaluation['comments'],
-            $newEvaluation['performance']
+            $newEvaluation['performance'],
+            $newEvaluation['evaluator']
         );
         if ($stmt->execute()) {
-            echo "New evaluation added successfully.";
+            echo "<div class='alert alert-success'>New evaluation added successfully.</div>";
         } else {
-            echo "Error: " . $stmt->error;
+            echo "<div class='alert alert-danger'>Error: " . $stmt->error . "</div>";
         }
     }
 
     if (isset($_POST['editEvaluation'])) {
-        // Debugging - check what is being passed
-        var_dump($_POST);
-    
-        // Update evaluation in the database
-        $stmt = $conn->prepare("UPDATE worker_evaluations SET employee_id = ?, name = ?, position = ?, department = ?, start_date = ?, comments = ?, performance = ? WHERE id = ?");
-
-        // Get the sum of the 10 criteria ratings
-        $performance = array_sum(array_map('intval', array_slice($_POST, array_search('criteria_1', array_keys($_POST)), 10)));
-    
-        $stmt->bind_param(
-            "ssssssii", // Change to "ssssssii" because both performance and id are integers
-            $_POST['employee_id'],
-            $_POST['name'],
-            $_POST['position'],
-            $_POST['department'],
-            $_POST['start_date'],
-            $_POST['comments'],
-            $performance, // Make sure performance is correctly handled
-            $_POST['id']
-        );
+        // Get the specific evaluation ID to update
+        $evaluationId = trim($_POST['id']);
         
-        if ($stmt->execute()) {
-            echo "Evaluation updated successfully.";
+        // Validate that we have a proper ID
+        if (empty($evaluationId)) {
+            die("<div class='alert alert-danger'>Error: No evaluation ID provided!</div>");
+        }
+        
+        // Debug output - only display temporarily for troubleshooting
+        echo "<div class='alert alert-info'>Processing edit for evaluation ID: " . htmlspecialchars($evaluationId) . "</div>";
+        
+        // Calculate the performance score from the ratings
+        $performance = 0;
+        for ($i = 1; $i <= 10; $i++) {
+            if (isset($_POST['criteria_' . $i])) {
+                $performance += intval($_POST['criteria_' . $i]);
+            }
+        }
+        
+        // Check if the ID exists in the database before updating
+        $checkStmt = $conn->prepare("SELECT COUNT(*) FROM worker_evaluations WHERE id = ?");
+        $checkStmt->bind_param("s", $evaluationId); // Bind as string
+        $checkStmt->execute();
+        $checkStmt->bind_result($count);
+        $checkStmt->fetch();
+        $checkStmt->close();
+        
+        if ($count != 1) {
+            echo "<div class='alert alert-danger'>Error: Evaluation ID '$evaluationId' not found in database!</div>";
         } else {
-            echo "Error: " . $stmt->error;
+            // Prepare the update statement with WHERE clause that targets only the specific ID
+            $stmt = $conn->prepare("UPDATE worker_evaluations SET start_date = ?, comments = ?, performance = ?, evaluator = ? WHERE id = ?");
+            
+            if (!$stmt) {
+                die("<div class='alert alert-danger'>Error in preparing statement: " . $conn->error . "</div>");
+            }
+            
+            // Get the form values to update
+            $startDate = $_POST['start_date'];
+            $comments = $_POST['comments'];
+            
+            // Only bind the fields that should be editable (not employee info)
+            $stmt->bind_param("ssiss", $startDate, $comments, $performance, $username, $evaluationId);
+            
+            if ($stmt->execute()) {
+                // Check how many rows were affected - should be exactly 1
+                $rowsAffected = $stmt->affected_rows;
+                if ($rowsAffected === 1) {
+                    echo "<div class='alert alert-success'>Evaluation updated successfully. (1 record updated)</div>";
+                } else {
+                    echo "<div class='alert alert-warning'>Warning: Expected to update 1 record, but updated " . $rowsAffected . " records.</div>";
+                }
+            } else {
+                echo "<div class='alert alert-danger'>Error updating evaluation: " . $stmt->error . "</div>";
+            }
         }
     }
     
@@ -275,6 +320,19 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
         .print-btn {
             margin-bottom: 20px;
         }
+        /* Style for read-only fields */
+        input[readonly] {
+            background-color: #f8f9fa;
+            border: 1px solid #ced4da;
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+        /* Make it clear these fields cannot be edited */
+        input[readonly]::after {
+            content: " (Cannot be edited)";
+            font-size: 12px;
+            color: #dc3545;
+        }
         </style>
     </head>
 
@@ -297,7 +355,6 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                                     <button class="btn btn-primary" type="submit" style="border-radius: 0; border: 3px solid #131313;">Search</button>
                                 </div>
                             </div>
-                            <button class="btn btn-primary mb-3" type="button" data-toggle="modal" data-target="#addEvaluationModal" style="border-radius: 0 10px 10px 0; border: 3px solid #131313;">Add Evaluation</button>
                         </form>
                     </div>
                     
@@ -313,10 +370,8 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                                     <div class="d-flex align-items-center" style="gap:10px;">
                                         
                                         <!-- Start the form for deletion -->
-                                        <form method="POST" id="deleteForm" style="display:inline;">
-                                            <button type="submit" name="deleteTask" class="btn btn-danger" disabled>Del</button>
-                                        </form>
-                                        <button class="btn btn-primary" name="editTaskMod" data-toggle="modal" data-target="#editEvaluationModal" disabled data-id="<?php echo $task['id']; ?>">Edit</button>
+
+                                        <button class="btn btn-primary" id="editButton" name="editTaskMod" data-toggle="modal" data-target="#editEvaluationModal" disabled>Edit Evaluation</button>
                                         <!-- <button class="btn btn-secondary" onclick="window.print()">Print</button> -->
                                         
                                         <div>
@@ -384,13 +439,24 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                                             
                                             <!-- Performance (No sorting) -->
                                             <th>Performance</th> 
+                                            
+                                            <!-- Evaluator Column (No sorting) -->
+                                            <th>Evaluated By</th>
                                         </tr>
 
                                     </thead>
 
                                     <tbody>
                                         <?php foreach ($tasks as $task): ?>
-                                        <tr>
+                                        <tr data-id="<?php echo $task['id']; ?>" 
+                                           data-employee-id="<?php echo $task['employee_id']; ?>"
+                                           data-name="<?php echo $task['name']; ?>"
+                                           data-position="<?php echo $task['position']; ?>"
+                                           data-department="<?php echo $task['department']; ?>"
+                                           data-start-date="<?php echo $task['start_date']; ?>"
+                                           data-comments="<?php echo $task['comments']; ?>"
+                                           data-performance="<?php echo $task['performance']; ?>"
+                                           data-evaluator="<?php echo $task['evaluator'] ?? 'Unknown'; ?>">
                                             <td>
                                                 <!-- Make sure the checkbox is inside the form -->
                                                 <input type="checkbox" id="chkbx" name="task_checkbox[]" form="deleteForm" value="<?php echo $task['id']; ?>" onclick="updateSelectedCount(this)">
@@ -403,6 +469,7 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                                             <td><?php echo $task['start_date']; ?></td>
                                             <td><?php echo $task['comments']; ?></td>
                                             <td><?php echo $task['performance']; ?></td>
+                                            <td><?php echo !empty($task['evaluator']) ? $task['evaluator'] : 'Unknown'; ?></td>
                                         </tr>
                                         <?php endforeach; ?>
                                     </tbody>
@@ -518,30 +585,26 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                             <div class="row">
                                 <!-- Left Column: Worker Information -->
                                 <div class="col-md-6">
-                                    <input type="hidden" id="edit_id" name="id">
+                                    <!-- ID field - critical for identifying which record to update -->
+                                    <div class="form-group">
+                                        <label for="edit_id"><strong>Evaluation ID (Do Not Change)</strong></label>
+                                        <input type="text" class="form-control bg-warning" id="edit_id" name="id" readonly>
+                                    </div>
                                     <div class="form-group">
                                         <label for="edit_employee_id">Employee ID</label>
-                                        <input type="text" class="form-control" id="edit_employee_id" name="employee_id" required>
+                                        <input type="text" class="form-control" id="edit_employee_id" name="employee_id" readonly>
                                     </div>
                                     <div class="form-group">
                                         <label for="edit_name">Name</label>
-                                        <input type="text" class="form-control" id="edit_name" name="name" required>
+                                        <input type="text" class="form-control" id="edit_name" name="name" readonly>
                                     </div>
                                     <div class="form-group">
                                         <label for="edit_position">Position</label>
-                                        <input type="text" class="form-control" id="edit_position" name="position" required>
+                                        <input type="text" class="form-control" id="edit_position" name="position" readonly>
                                     </div>
                                     <div class="form-group">
                                         <label for="edit_department">Department</label>
-                                        <select class="form-control" id="edit_department" name="department" required>
-                                            <option value="">Select Department</option>
-                                            <option value="Sales">Sales</option>
-                                            <option value="Purchasing">Purchasing</option>
-                                            <option value="Purchase Development">Purchase Development</option>
-                                            <option value="Warehouse">Warehouse</option>
-                                            <option value="Logistics">Logistics</option>
-                                            <option value="Accounting">Accounting</option>
-                                        </select>
+                                        <input type="text" class="form-control" id="edit_department" name="department" readonly>
                                     </div>
                                     <div class="form-group">
                                         <label for="edit_start_date">Start Date</label>
@@ -550,6 +613,16 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                                     <div class="form-group">
                                         <label for="edit_comments">Additional Comments</label>
                                         <textarea class="form-control" id="edit_comments" name="comments"></textarea>
+                                    </div>
+                                    <!-- Show who originally evaluated this employee -->
+                                    <div class="form-group">
+                                        <label for="edit_evaluator">Originally Evaluated By</label>
+                                        <input type="text" class="form-control" id="edit_evaluator" name="original_evaluator" readonly>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="current_evaluator">Current Evaluator (You)</label>
+                                        <input type="text" class="form-control" id="current_evaluator" value="<?php echo htmlspecialchars($username); ?>" readonly>
+                                        <small class="form-text text-muted">Your username will be recorded as the latest evaluator.</small>
                                     </div>
                                 </div>
                                 
@@ -569,7 +642,7 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                                         "Creativity",
                                         "Overall Performance"
                                     ];
-                                    shuffle($questions);
+                                    
                                     foreach ($questions as $index => $question): ?>
                                     <div class="form-group">
                                         <label for="edit_criteria_<?php echo $index + 1; ?>"><?php echo $question; ?></label>
@@ -658,6 +731,84 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                     sidebar.style.right = '-300px';
                 }
             }
+            
+            // JavaScript to handle populating the edit form with selected employee data
+            document.addEventListener('DOMContentLoaded', function() {
+                const editButton = document.getElementById('editButton');
+                const checkboxes = document.querySelectorAll('input[name="task_checkbox[]"]');
+                
+                // Update selected count and toggle buttons
+                function updateSelectedCount() {
+                    const selectedCheckboxes = document.querySelectorAll('input[name="task_checkbox[]"]:checked');
+                    const selectedCount = selectedCheckboxes.length;
+                    
+                    // Update count display
+                    document.getElementById('selected-count').textContent = selectedCount;
+                    
+                    // Toggle delete button
+                    const deleteButton = document.querySelector('button[name="deleteTask"]');
+                    if (deleteButton) {
+                        deleteButton.disabled = selectedCount === 0;
+                    }
+                    
+                    // Toggle edit button - only enable if exactly one checkbox is selected
+                    if (editButton) {
+                        editButton.disabled = selectedCount !== 1;
+                    }
+                }
+                
+                // Add event listeners to all checkboxes
+                checkboxes.forEach(function(checkbox) {
+                    checkbox.addEventListener('change', updateSelectedCount);
+                });
+                
+                // Handle edit button click to populate the form
+                editButton.addEventListener('click', function() {
+                    // Find the selected checkbox
+                    const selectedCheckbox = document.querySelector('input[name="task_checkbox[]"]:checked');
+                    
+                    if (selectedCheckbox) {
+                        // Get the parent row
+                        const selectedRow = selectedCheckbox.closest('tr');
+                        
+                        if (selectedRow) {
+                            // Get data from the row
+                            const id = selectedRow.getAttribute('data-id');
+                            const employeeId = selectedRow.getAttribute('data-employee-id');
+                            const name = selectedRow.getAttribute('data-name');
+                            const position = selectedRow.getAttribute('data-position');
+                            const department = selectedRow.getAttribute('data-department');
+                            const startDate = selectedRow.getAttribute('data-start-date');
+                            const comments = selectedRow.getAttribute('data-comments');
+                            const performance = selectedRow.getAttribute('data-performance');
+                            const evaluator = selectedRow.getAttribute('data-evaluator');
+                            
+                            console.log("Loading data for employee ID:", id, "Employee data:", {
+                                employeeId, name, position, department, startDate, comments, performance, evaluator
+                            });
+                            
+                            // Ensure the hidden ID field is populated (this is the critical field for the update)
+                            const idField = document.getElementById('edit_id');
+                            idField.value = id;
+                            
+                            // Verify ID is set correctly
+                            console.log("Set edit_id field value to:", idField.value);
+                            
+                            // Populate the rest of the edit form
+                            document.getElementById('edit_employee_id').value = employeeId;
+                            document.getElementById('edit_name').value = name;
+                            document.getElementById('edit_position').value = position;
+                            document.getElementById('edit_department').value = department;
+                            document.getElementById('edit_start_date').value = startDate;
+                            document.getElementById('edit_comments').value = comments;
+                            document.getElementById('edit_evaluator').value = evaluator || 'Unknown';
+                        }
+                    }
+                });
+                
+                // Initial call to set button states
+                updateSelectedCount();
+            });
         </script>
     </body>
 </html>

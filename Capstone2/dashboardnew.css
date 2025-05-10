@@ -88,6 +88,10 @@ html, body {
     background: linear-gradient(135deg, var(--danger) 0%, #b71c1c 100%);
 }
 
+.overview-card.purple {
+    background: linear-gradient(135deg, #9c27b0 0%, #6a1b9a 100%);
+}
+
 .overview-card .info {
     font-size: 16px;
     margin-bottom: 8px;
@@ -219,7 +223,7 @@ html, body {
 
 .option {
     flex: 1;
-    min-width: 280px;
+    min-width: 150px;
     border-radius: var(--radius);
     box-shadow: var(--shadow);
     transition: var(--transition);
@@ -274,12 +278,15 @@ html, body {
     border-radius: var(--radius);
     padding: 20px;
     box-shadow: var(--shadow);
+    overflow: auto;
+    min-height: 300px;
 }
 
 /* Layout Containers */
 .container-everything {
     display: flex;
     margin-left: 70px;
+    width: calc(100% - 70px);
 }
 
 .container-top {
@@ -293,6 +300,7 @@ html, body {
     width: 100%;    
     height: 100%;
     display: flex;
+    flex-wrap: wrap;
 }
 
 .container-all {
@@ -307,6 +315,7 @@ html, body {
     flex: 6;
     margin: 15px;
     border-radius: var(--radius);
+    min-width: 300px;
 }
 
 .container-right {
@@ -314,6 +323,7 @@ html, body {
     margin: 15px;
     padding-right: 20px;
     border-radius: var(--radius);
+    min-width: 300px;
 }
 
 .container-sidebar {
@@ -472,4 +482,153 @@ input[type="checkbox"]:checked::after {
 
 ::-webkit-scrollbar-thumb:hover {
     background-color: var(--primary);
+}
+
+/* Table Responsive Styles */
+.table-responsive {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table-responsive th,
+.table-responsive td {
+    white-space: nowrap;
+}
+
+/* Calendar Responsiveness */
+.calendar-widget {
+    overflow-x: auto;
+}
+
+.calendar-widget table {
+    min-width: 100%;
+}
+
+/* Responsive Design */
+@media screen and (max-width: 1400px) {
+    .container-bottom {
+        flex-direction: column;
+    }
+    
+    .container-left, 
+    .container-right {
+        flex: 1;
+        width: calc(100% - 30px);
+        padding-right: 0;
+    }
+    
+    .container-right {
+        padding-right: 15px;
+    }
+}
+
+@media screen and (max-width: 1024px) {
+    .options {
+        gap: 15px;
+    }
+    
+    .option {
+        min-width: 130px;
+        padding: 20px;
+    }
+    
+    .count-employee-total,
+    .count-ontime-percent,
+    .count-ontime-total,
+    .current-time-widget,
+    .button-widget-text {
+        font-size: 20px;
+    }
+    
+    .overview-card .info {
+        font-size: 14px;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .options {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .option {
+        min-width: auto;
+        width: 100%;
+        margin-bottom: 15px;
+    }
+    
+    .container-everything {
+        margin-left: 60px;
+        width: calc(100% - 60px);
+    }
+    
+    .graph-container {
+        padding: 15px;
+        min-height: 250px;
+    }
+    
+    .table th, 
+    .table td {
+        padding: 10px;
+        font-size: 13px;
+    }
+    
+    /* Chart responsiveness */
+    canvas {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+}
+
+@media screen and (max-width: 576px) {
+    .container-everything {
+        margin-left: 50px;
+        width: calc(100% - 50px);
+    }
+    
+    .container-left, 
+    .container-right {
+        margin: 10px;
+    }
+    
+    .top-widgets-container {
+        margin: 10px;
+    }
+    
+    .graph-container {
+        padding: 10px;
+        margin-bottom: 20px;
+        min-height: 200px;
+    }
+    
+    .count-employee-total,
+    .count-ontime-percent,
+    .count-ontime-total,
+    .current-time-widget,
+    .button-widget-text {
+        font-size: 18px;
+    }
+    
+    .overview-card .info {
+        font-size: 12px;
+    }
+    
+    .table-container {
+        max-height: 300px;
+    }
+    
+    .table th, 
+    .table td {
+        padding: 8px;
+        font-size: 12px;
+    }
+    
+    .attendance-record,
+    .leave-table,
+    .employee-table,
+    .calendar-widget {
+        overflow-x: auto;
+    }
 }

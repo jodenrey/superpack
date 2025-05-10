@@ -274,7 +274,7 @@
                     Registration successful! You can now log in with your QR code.
                 </div>
                 
-                <form id="register-form">
+                <form id="register-form" enctype="multipart/form-data">
                     <input type="text" name="name" id="name" placeholder="Full Name" pattern="^[A-Za-z\s]+$" title="Please enter only letters and spaces" oninput="this.value=this.value.replace(/[^A-Za-z\s]/g,'')" required>
                     <div class="validation-error" id="name-error">Please enter your full name (letters only)</div>
                     
@@ -286,6 +286,15 @@
                     
                     <input type="password" name="confirm_password" id="confirm_password" placeholder="Confirm Password" required>
                     <div class="validation-error" id="confirm-password-error">Passwords do not match</div>
+                    
+                    <div style="position: relative; margin-bottom: 15px;">
+                        <label for="profile_picture" style="display: block; margin-bottom: 8px; color: #666; font-size: 14px;">Profile Picture (Optional)</label>
+                        <input type="file" name="profile_picture" id="profile_picture" accept="image/*" style="border: 1px dashed #ccc; padding: 10px; width: 100%; border-radius: 5px;">
+                        <div class="validation-error" id="profile-picture-error">Invalid file type. Only JPG, JPEG, PNG, and GIF files are allowed.</div>
+                        <div style="display: none; margin-top: 10px;" id="image-preview-container">
+                            <img id="image-preview" src="#" alt="Profile Preview" style="max-width: 100px; max-height: 100px; border-radius: 50%; object-fit: cover;">
+                        </div>
+                    </div>
                     
                     <select name="department" id="department" required>
                         <option value="" disabled selected>Select Department</option>
@@ -335,6 +344,24 @@
         const qrCode = document.getElementById('qr-code');
         const downloadQrButton = document.getElementById('download-qr-button');
         const successMessage = document.getElementById('success-message');
+        const profilePictureInput = document.getElementById('profile_picture');
+        const imagePreview = document.getElementById('image-preview');
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+        
+        // Profile picture preview
+        profilePictureInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreviewContainer.style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+            } else {
+                imagePreviewContainer.style.display = 'none';
+            }
+        });
         
         // Form validation
         function validateForm() {

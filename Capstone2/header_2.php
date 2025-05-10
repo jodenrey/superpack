@@ -4,13 +4,36 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Check for username in session with multiple fallbacks
-$username = isset($_SESSION['name']) ? $_SESSION['name'] : 
-           (isset($_SESSION['username']) ? $_SESSION['username'] : 'User');
+// Include user functions
+require_once('user_functions.php');
+
+// Get current username
+$username = getCurrentUsername();
 
 // Get department name from URL or set default
 $department_name = isset($_GET['department']) ? $_GET['department'] : 
                   (isset($_SESSION['department']) ? $_SESSION['department'] : 'Superpack Enterprise');
+
+// Get user's profile picture
+$uploadDir = 'uploads/profile_pictures/';
+$defaultImage = $uploadDir . 'default.png';
+$userImage = $defaultImage;
+
+// Database connection
+$host = "localhost";
+$user = "root";
+$password = "password";
+$database = "superpack_database";
+$port = 3306;
+
+// Connect to database
+$header_conn = new mysqli($host, $user, $password, $database, $port);
+
+// Get user's profile picture
+$userImage = getUserProfilePicture($username, $header_conn);
+
+// Close connection
+$header_conn->close();
 ?>
 
 <!DOCTYPE html>
@@ -155,16 +178,22 @@ $department_name = isset($_GET['department']) ? $_GET['department'] :
         <div class="header-bar">
             <div class="company-info">
                 <div class="company-title"><?php echo htmlspecialchars($department_name); ?></div>
-                <div class="current-time" id="current-time"></div>
             </div>
+            
+            <div class="user_info">
+                <div class="current-time" id="current-time"></div>
+                
+                <?php include 'notifications.php'; ?>
             
             <div class="user-dropdown">
                 <div class="user-profile">
                     <span class="user_name_text"><?php echo htmlspecialchars($username); ?></span>
-                    <img src="cina.jpg" alt="User Logo" class="user_logo">
+                    <img src="<?php echo htmlspecialchars($userImage) . '?v=' . time(); ?>" alt="User Logo" class="user_logo">
                 </div>
                 <div class="user-dropdown-content">
+                    <a href="profile.php"><i class="fas fa-user-circle"></i> My Profile</a>
                     <a href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    </div>
                 </div>
             </div>
         </div>

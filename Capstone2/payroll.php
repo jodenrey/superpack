@@ -215,41 +215,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="container-top">
                     <?php include 'header_2.php'; ?>
                 </div>
-                <div class="container-search">
-                    <div class="table-container">
-                        <table class="table table-bordered table-striped">
-                            <thead>
-                                <tr>
-                                    <th>OT Pay</th>
-                                    <th>Late deduct (In Hours)</th>
-                                    <th>Date Created</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php
-                                // Fetch payroll records from the database
-                                $query = "SELECT * FROM additional_pay";
-                                $result = $conn->query($query);
-
-                                if ($result->num_rows > 0) {
-                                    // Output data of each row
-                                    while($row = $result->fetch_assoc()) {
-                                        echo "<tr>";
-                                        echo "<td>" . htmlspecialchars($row['ot_pay']) . "</td>";
-                                        echo "<td>" . htmlspecialchars($row['late_deduct']) . "</td>";
-                                        echo "<td>" . htmlspecialchars($row['date_created']) . "</td>";
-                                        echo "<td><button class='btn btn-primary' data-toggle='modal' data-target='#editPayModal' data-id='" . htmlspecialchars($row['id']) . "'>Edit</button></td>";
-                                        echo "</tr>";
-                                    }
-                                } else {
-                                    echo "<tr><td colspan='4' class='text-center'><button class='btn btn-primary' data-toggle='modal' data-target='#addPayModal'>Set a Value</button></td></tr>";
-                                }
-                                ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+            
                 <div style="border-top:5px solid #131313; width:100%; height:1px;"></div>
                 <div class="container-search"  style="height:100%;">
                     <div class="search-bar">
@@ -262,7 +228,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <button class="btn btn-primary" type="submit" style="border-radius: 0; border: 3px solid #131313;">Search</button>
                                 </div>
                             </div>
-                            <button class="btn btn-primary mb-3" type="button" data-toggle="modal" data-target="#addPayrollModal" style="border-radius: 0 10px 10px 0; border: 3px solid #131313;">Add Record</button>
                         </form>
                     </div>
                     <div class="tool-bar">
@@ -273,11 +238,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             
                             <div class="d-flex align-items-center" style="gap:10px;">
                                 
+                                <!-- Hidden form for checkbox association -->
+                                <form id="deleteForm" method="POST" style="display: none;"></form>
+                                
                                 <!-- Start the form for deletion -->
-                                <form method="POST" id="deleteForm" style="display:inline;">
-                                    <button type="submit" name="deleteTask" class="btn btn-danger" disabled>Del</button>
-                                </form>
-                                <button class="btn btn-primary" name="editTaskMod" data-toggle="modal" data-target="#editTaskModal" disabled data-id="<?php echo $task['id']; ?>">Edit</button>
+                                <button class="btn btn-primary" name="editTaskMod" data-toggle="modal" data-target="#editTaskModal" disabled>Edit</button>
                                 
                                 <button class="btn btn-info" onclick="window.location.href='payroll.php'">Reset</button>
                             </div>
@@ -681,15 +646,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Function to toggle the delete and edit buttons
         function toggleButtons(selectedCount) {
-            // Get the delete and edit buttons
-            var deleteButton = document.querySelector('button[name="deleteTask"]');
+            // Get the edit button
             var editButton = document.querySelector('button[name="editTaskMod"]');
 
-            // Enable delete button if at least one checkbox is selected
-            deleteButton.disabled = selectedCount === 0;
-
-            // Enable edit button only if exactly one checkbox is selected
-            editButton.disabled = selectedCount !== 1;
+            // Enable edit button only if exactly one checkbox is selected and if the button exists
+            if (editButton) {
+                editButton.disabled = selectedCount !== 1;
+            }
         }
 
         // Attach event listeners to all checkboxes
@@ -838,29 +801,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             // Function to handle when Edit Task Modal is shown
             $('#editTaskModal').on('show.bs.modal', function (event) {
-                const button = $(event.relatedTarget);
-                const taskId = button.data('id');
+                // Get the selected checkbox
+                const selectedCheckbox = document.querySelector('input[name="task_checkbox[]"]:checked');
+                if (!selectedCheckbox) return;
+                
+                const taskId = selectedCheckbox.value;
                 
                 // Find the row with the matching task ID
-                const checkbox = document.querySelector(`input[name="task_checkbox[]"][value="${taskId}"]`);
-                if (checkbox) {
-                    const row = checkbox.closest('tr');
-                    const cells = row.querySelectorAll('td');
-                    
-                    // Fill the edit form with the task data
-                    document.getElementById('edit_id').value = taskId;
-                    document.getElementById('edit_name').value = cells[1].textContent.trim();
-                    document.getElementById('edit_position').value = cells[2].textContent.trim();
-                    document.getElementById('edit_salary').value = cells[3].textContent.trim();
-                    document.getElementById('edit_basic_pay').value = cells[5].textContent.trim();
-                    document.getElementById('edit_ot_pay').value = cells[6].textContent.trim();
-                    document.getElementById('edit_late_deduct').value = cells[7].textContent.trim();
-                    document.getElementById('edit_gross_pay').value = cells[8].textContent.trim();
-                    document.getElementById('edit_sss_deduct').value = cells[9].textContent.trim();
-                    document.getElementById('edit_pagibig_deduct').value = cells[10].textContent.trim();
-                    document.getElementById('edit_total_deduct').value = cells[11].textContent.trim();
-                    document.getElementById('edit_net_salary').value = cells[12].textContent.trim();
-                }
+                const row = selectedCheckbox.closest('tr');
+                const cells = row.querySelectorAll('td');
+                
+                // Fill the edit form with the task data
+                document.getElementById('edit_id').value = taskId;
+                document.getElementById('edit_name').value = cells[1].textContent.trim();
+                document.getElementById('edit_position').value = cells[2].textContent.trim();
+                document.getElementById('edit_salary').value = cells[3].textContent.trim();
+                document.getElementById('edit_basic_pay').value = cells[5].textContent.trim();
+                document.getElementById('edit_ot_pay').value = cells[6].textContent.trim();
+                document.getElementById('edit_late_deduct').value = cells[7].textContent.trim();
+                document.getElementById('edit_gross_pay').value = cells[8].textContent.trim();
+                document.getElementById('edit_sss_deduct').value = cells[9].textContent.trim();
+                document.getElementById('edit_pagibig_deduct').value = cells[10].textContent.trim();
+                document.getElementById('edit_total_deduct').value = cells[11].textContent.trim();
+                document.getElementById('edit_net_salary').value = cells[12].textContent.trim();
                 
                 // Update total deductions and net salary calculations
                 updateTotalsInEditModal();
