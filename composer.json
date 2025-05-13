@@ -1,0 +1,34 @@
+{
+    "name": "jodenrey/superpack",
+    "description": "An enterprise management system with HR management, face recognition login, and task management features",
+    "type": "project",
+    "require": {
+        "php": ">=7.4",
+        "ext-pdo": "*",
+        "ext-pdo_mysql": "*",
+        "ext-json": "*",
+        "ext-curl": "*"
+    },
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "Superpack Development Team"
+        }
+    ],
+    "minimum-stability": "stable",
+    "autoload": {
+        "psr-4": {
+            "Superpack\\": "src/"
+        }
+    },
+    "scripts": {
+        "post-install-cmd": [
+            "php -r \"mkdir('src', 0755, true);\""
+        ]
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true
+    }
+} 
