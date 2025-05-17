@@ -8,6 +8,7 @@ if (!isset($_SESSION['loggedin'])) {
 }
 
 $username = isset($_SESSION['username']) ? $_SESSION['username'] : 'Guest';
+$role = isset($_SESSION['role']) ? $_SESSION['role'] : '';
 
 $host = "localhost";
 $user = "root";
@@ -69,35 +70,8 @@ $tasksTable = $department . '_tasks';
 // Initialize search ID
 $searchId = isset($_GET['search_id']) ? $_GET['search_id'] : '';
 
-// Base query to retrieve tasks from the database
-$query = "SELECT * FROM $tasksTable";
-
-// If search_id is provided, add WHERE clause with LIKE
-if (!empty($searchId)) {
-    $query .= " WHERE id LIKE ?";
-}
-
-// Prepare the SQL statement
-$stmt = $conn->prepare($query);
-
-// Check if the statement was prepared successfully
-if (!$stmt) {
-    die("Query preparation failed: " . $conn->error);
-}
-
-// Bind the search ID with wildcard if a search term is provided
-if (!empty($searchId)) {
-    $searchTerm = '%' . $searchId . '%';
-    $stmt->bind_param("i", $searchTerm);
-}
-
-// Execute the query
-$stmt->execute();
-$result = $stmt->get_result();
-$tasks = $result->fetch_all(MYSQLI_ASSOC);
-
-// update the table after search
-
+// Task data will be fetched at the end, after applying filters
+$tasks = [];
 
 // Handling form submissions for adding, editing, and deleting tasks
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -201,25 +175,31 @@ $startDateEnd = isset($_GET['start_date_end']) ? $_GET['start_date_end'] : '';
 $priority = isset($_GET['priority']) ? $_GET['priority'] : '';
 $duration = isset($_GET['duration']) ? $_GET['duration'] : '';
 
-// Get current user info
-$username = isset($_SESSION['username']) ? $_SESSION['username'] : '';
-$role = isset($_SESSION['role']) ? $_SESSION['role'] : '';
-
 // Build the query with filters and sorting
 $query = "SELECT * FROM $tasksTable WHERE 1=1"; // Always true condition for appending WHERE clauses
 
-// Filter by current user for non-admin roles
+// IMPORTANT: Non-admin users can only see their own tasks
 if ($role !== 'Admin' && !empty($username)) {
     $query .= " AND owner = ?";
     $bindTypes = 's';
     $bindValues = [$username];
 }
 
+// Search by ID if provided
+if (!empty($searchId)) {
+    $query .= " AND id LIKE ?";
+    $bindTypes .= 's';
+    $bindValues[] = '%' . $searchId . '%';
+}
+
 // Append filters to the query if the user provided values
 if (!empty($assigned)) {
-    $query .= " AND owner = ?";
-    $bindTypes .= 's';
-    $bindValues[] = $assigned;
+    // For admins only - they can filter by assigned employee
+    if ($role === 'Admin') {
+        $query .= " AND owner = ?";
+        $bindTypes .= 's';
+        $bindValues[] = $assigned;
+    }
 }
 if (!empty($status)) {
     $query .= " AND status = ?";
@@ -262,29 +242,26 @@ if (in_array($sort, ['start_date', 'due_date', 'id', 'task', 'owner', 'status', 
     $query .= " ORDER BY $sort $direction";
 }
 
-// Prepare the statement
-$stmt = $conn->prepare($query);
-
-//Check if the statement was prepared successfully
+// Prepare and execute the query
 try {
     $stmt = $conn->prepare($query);
     if (!$stmt) {
         throw new Exception("Query preparation failed: " . $conn->error);
     }
-    // Additional logic...
+    
+    // Bind parameters if there are any
+    if (!empty($bindValues)) {
+        $stmt->bind_param($bindTypes, ...$bindValues);
+    }
+    
+    // Execute the query
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $tasks = $result->fetch_all(MYSQLI_ASSOC);
+    
 } catch (Exception $e) {
     die("Error: " . $e->getMessage());
 }
-
-// Bind the parameters if there are any
-if (!empty($bindValues)) {
-    $stmt->bind_param($bindTypes, ...$bindValues);
-}
-
-// Execute the query
-$stmt->execute();
-$result = $stmt->get_result();
-$tasks = $result->fetch_all(MYSQLI_ASSOC);
 
 // Get a list of all employees for the dropdown in the add task form
 $employeeQuery = "SELECT name FROM employee_records WHERE status = 'Active'";
@@ -294,17 +271,6 @@ if ($employeeResult && $employeeResult->num_rows > 0) {
     while ($employeeRow = $employeeResult->fetch_assoc()) {
         $employees[] = $employeeRow['name'];
     }
-}
-
-// Filter tasks for non-admin users to only show their assigned tasks
-$username = isset($_SESSION['username']) ? $_SESSION['username'] : '';
-$role = isset($_SESSION['role']) ? $_SESSION['role'] : '';
-
-// Modify the query to filter by assigned owner if not admin
-if ($role !== 'Admin' && !empty($username)) {
-    $query .= " AND owner = ?";
-    $bindTypes .= 's';
-    $bindValues[] = $username;
 }
 ?>
 

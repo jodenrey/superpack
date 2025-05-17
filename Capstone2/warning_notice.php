@@ -164,7 +164,7 @@ if ($role !== 'Admin') {
     $warningsResult = $stmt->get_result();
 } else {
     // Admin can see all warnings
-    $warningsQuery .= " ORDER BY warning_date DESC";
+    $warningsQuery .= " ORDER BY date_of_warning DESC";
 $warningsResult = $conn->query($warningsQuery);
 }
 
