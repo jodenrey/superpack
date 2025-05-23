@@ -2,7 +2,13 @@
 // Set the default timezone for Philippines
 date_default_timezone_set('Asia/Manila');
 
-session_start();
+// Include notification helper functions
+require_once('notification_helper.php');
+
+// Make sure session is started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 // Get username from the correct session variable - check all possible sources
 if (isset($_SESSION['name'])) {
@@ -275,7 +281,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->bind_param("ssss", $leave['leaveType'], $leave['startDate'], $leave['endDate'], $leave['status']);
         }
         
-        $stmt->execute();
+        if ($stmt->execute()) {
+            // Create notification for admin about new leave request
+            notifyAdminLeaveRequest($conn, $username, $leave['leaveType'], $leave['startDate'], $leave['endDate']);
+        }
     }
     
     // Handle admin approval/denial of leave requests
@@ -283,18 +292,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $leaveId = $_POST['leaveId'];
         $status = 'Approved';
         
-        $stmt = $conn->prepare("UPDATE leave_request SET status = ? WHERE id = ?");
-        $stmt->bind_param("si", $status, $leaveId);
-        $stmt->execute();
+        // Get leave request details for notification
+        $getLeaveStmt = $conn->prepare("SELECT username, leave_type, start_date, end_date FROM leave_request WHERE id = ?");
+        $getLeaveStmt->bind_param("i", $leaveId);
+        $getLeaveStmt->execute();
+        $leaveResult = $getLeaveStmt->get_result();
+        
+        if ($leaveResult->num_rows > 0) {
+            $leaveData = $leaveResult->fetch_assoc();
+            
+            $stmt = $conn->prepare("UPDATE leave_request SET status = ? WHERE id = ?");
+            $stmt->bind_param("si", $status, $leaveId);
+            
+            if ($stmt->execute()) {
+                // Get employee ID for notification - with debugging
+                $employee_username = $leaveData['username'];
+                $employee_id = getUserIdFromUsername($conn, $employee_username);
+                
+                // Debug: Log what we found
+                error_log("Leave approval notification: username='$employee_username', resolved employee_id='$employee_id'");
+                
+                // Create notification for employee about approved leave
+                $notifyResult = notifyEmployeeLeaveStatus($conn, $employee_id, $status, $leaveData['leave_type'], $leaveData['start_date'], $leaveData['end_date']);
+                
+                // Debug: Log notification result
+                error_log("Notification creation result: " . ($notifyResult ? 'success' : 'failed'));
+            }
+        }
     }
     
     if (isset($_POST['denyLeave'])) {
         $leaveId = $_POST['leaveId'];
         $status = 'Denied';
         
-        $stmt = $conn->prepare("UPDATE leave_request SET status = ? WHERE id = ?");
-        $stmt->bind_param("si", $status, $leaveId);
-        $stmt->execute();
+        // Get leave request details for notification
+        $getLeaveStmt = $conn->prepare("SELECT username, leave_type, start_date, end_date FROM leave_request WHERE id = ?");
+        $getLeaveStmt->bind_param("i", $leaveId);
+        $getLeaveStmt->execute();
+        $leaveResult = $getLeaveStmt->get_result();
+        
+        if ($leaveResult->num_rows > 0) {
+            $leaveData = $leaveResult->fetch_assoc();
+            
+            $stmt = $conn->prepare("UPDATE leave_request SET status = ? WHERE id = ?");
+            $stmt->bind_param("si", $status, $leaveId);
+            
+            if ($stmt->execute()) {
+                // Get employee ID for notification - with debugging
+                $employee_username = $leaveData['username'];
+                $employee_id = getUserIdFromUsername($conn, $employee_username);
+                
+                // Debug: Log what we found
+                error_log("Leave denial notification: username='$employee_username', resolved employee_id='$employee_id'");
+                
+                // Create notification for employee about denied leave
+                $notifyResult = notifyEmployeeLeaveStatus($conn, $employee_id, $status, $leaveData['leave_type'], $leaveData['start_date'], $leaveData['end_date']);
+                
+                // Debug: Log notification result
+                error_log("Notification creation result: " . ($notifyResult ? 'success' : 'failed'));
+            }
+        }
     }
     
     // Handle delete leave request
@@ -320,9 +377,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $endDate = $_POST['endDate'];
         $status = $_POST['status'];
         
-        $stmt = $conn->prepare("UPDATE leave_request SET leave_type = ?, start_date = ?, end_date = ?, status = ? WHERE id = ?");
-        $stmt->bind_param("ssssi", $leaveType, $startDate, $endDate, $status, $leaveId);
-        $stmt->execute();
+        // Get current leave request data to check if status changed
+        $getCurrentStmt = $conn->prepare("SELECT username, status FROM leave_request WHERE id = ?");
+        $getCurrentStmt->bind_param("i", $leaveId);
+        $getCurrentStmt->execute();
+        $currentResult = $getCurrentStmt->get_result();
+        
+        if ($currentResult->num_rows > 0) {
+            $currentData = $currentResult->fetch_assoc();
+            $oldStatus = $currentData['status'];
+            $employeeUsername = $currentData['username'];
+            
+            $stmt = $conn->prepare("UPDATE leave_request SET leave_type = ?, start_date = ?, end_date = ?, status = ? WHERE id = ?");
+            $stmt->bind_param("ssssi", $leaveType, $startDate, $endDate, $status, $leaveId);
+            
+            if ($stmt->execute()) {
+                // If status changed and admin updated it, notify employee
+                if ($oldStatus !== $status && ($status === 'Approved' || $status === 'Denied')) {
+                    $employee_id = getUserIdFromUsername($conn, $employeeUsername);
+                    notifyEmployeeLeaveStatus($conn, $employee_id, $status, $leaveType, $startDate, $endDate);
+                }
+            }
+        }
     }
 }
 
@@ -492,16 +568,48 @@ if ($role === 'Admin' && isset($_POST['add_timeout_column'])) {
                                 $today = date('Y-m-d');
                                 
                                 // Get name from database for more accurate lookup
-                                $lookupName = $username;
-                                $nameStmt = $conn->prepare("SELECT * FROM register WHERE name LIKE ?");
-                                $nameQuery = "%" . $username . "%";
-                                $nameStmt->bind_param("s", $nameQuery);
+                                $lookupName = $username; // This $username is likely the full name from session
+                                
+                                // Prepare to query the register table using individual name parts if possible,
+                                // or fall back to a broader search if $username is a simple string.
+                                $nameParts = explode(' ', $username);
+                                $firstName = $nameParts[0] ?? '';
+                                $lastName = array_pop($nameParts) ?? '';
+                                if (count($nameParts) > 1) { // If there was more than just a first and last name (i.e. middle name exists)
+                                    $middleName = implode(' ', array_slice($nameParts, 1)); // Middle name is everything between first and last
+                                } else {
+                                    $middleName = '';
+                                }
+
+                                // Attempt to find user by first and last name, optionally with middle name
+                                if (!empty($firstName) && !empty($lastName)) {
+                                    if (!empty($middleName)) {
+                                        $nameStmt = $conn->prepare("SELECT first_name, middle_name, last_name FROM register WHERE first_name LIKE ? AND middle_name LIKE ? AND last_name LIKE ?");
+                                        $fnQuery = "%" . $firstName . "%";
+                                        $mnQuery = "%" . $middleName . "%";
+                                        $lnQuery = "%" . $lastName . "%";
+                                        $nameStmt->bind_param("sss", $fnQuery, $mnQuery, $lnQuery);
+                                    } else {
+                                        $nameStmt = $conn->prepare("SELECT first_name, middle_name, last_name FROM register WHERE first_name LIKE ? AND last_name LIKE ?");
+                                        $fnQuery = "%" . $firstName . "%";
+                                        $lnQuery = "%" . $lastName . "%";
+                                        $nameStmt->bind_param("ss", $fnQuery, $lnQuery);
+                                    }
+                                } else {
+                                    // Fallback if parsing username into parts is not reliable
+                                    // This part might need adjustment based on how $username is structured
+                                    $nameStmt = $conn->prepare("SELECT first_name, middle_name, last_name FROM register WHERE CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name) LIKE ?");
+                                    $nameQuery = "%" . $username . "%";
+                                    $nameStmt->bind_param("s", $nameQuery);
+                                }
+
                                 $nameStmt->execute();
                                 $nameResult = $nameStmt->get_result();
                                 
                                 if ($nameResult->num_rows > 0) {
                                     $nameData = $nameResult->fetch_assoc();
-                                    $lookupName = $nameData['name'];
+                                    // Reconstruct the full name from the database columns to ensure accuracy
+                                    $lookupName = trim($nameData['first_name'] . ' ' . $nameData['middle_name'] . ' ' . $nameData['last_name']);
                                 }
                                 
                                 $checkAttendanceStmt = $conn->prepare("SELECT * FROM attendance WHERE name = ? AND DATE(time_in) = ?");
@@ -1167,4 +1275,4 @@ function checkAndConvertOldFormat($qr_code_data) {
     }
     
     return $data;
-} 
+}

@@ -313,6 +313,23 @@ CREATE TABLE `employee_training` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `notifications`
+--
+
+CREATE TABLE `notifications` (
+  `id` int(11) NOT NULL,
+  `user_id` varchar(50) DEFAULT NULL,
+  `user_role` varchar(50) DEFAULT NULL,
+  `type` varchar(50) NOT NULL,
+  `message` text NOT NULL,
+  `link` varchar(255) NOT NULL,
+  `is_read` tinyint(1) DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Indexes for dumped tables
 --
 
@@ -408,6 +425,12 @@ ALTER TABLE `warning_notices`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `notifications`
+--
+ALTER TABLE `notifications`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- AUTO_INCREMENT for dumped tables
 --
 
@@ -481,6 +504,12 @@ ALTER TABLE `register`
 -- AUTO_INCREMENT for table `training_programs`
 --
 ALTER TABLE `training_programs`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `notifications`
+--
+ALTER TABLE `notifications`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --

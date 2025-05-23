@@ -99,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'pagibig_deduct' => floatval($_POST['pagibig_deduct']), // Convert to float
             'total_deduct' => $total_deduct, // Calculate and convert to float
             'net_salary' => ($adjusted_basic_pay - 0.05) + (floatval($_POST['ot_pay']) * $otPay) - $total_deduct, // Calculate and convert to float
-            'date_created' => date('Y-m-d')
+            'date_created' => !empty($_POST['date_created']) ? $_POST['date_created'] : date('Y-m-d')
         ];
 
         // prepare and bind
@@ -125,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'pagibig_deduct' => floatval($_POST['pagibig_deduct']), // Convert to float
             'total_deduct' => floatval($_POST['sss_deduct']) + floatval($_POST['pagibig_deduct']), // Calculate and convert to float
             'net_salary' => floatval($_POST['basic_pay']) + floatval($_POST['ot_pay']) - (floatval($_POST['total_deduct'])), // Calculate and convert to float
-            'date_created' => date('Y-m-d')
+            'date_created' => !empty($_POST['date_created']) ? $_POST['date_created'] : date('Y-m-d')
             ];
 
         // prepare and bind
@@ -201,6 +201,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="icon" type="image/x-icon" href="Superpack-Enterprise-Logo.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="dashboardnew.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
     </style>
 
@@ -305,6 +306,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                             data-netsalary="<?php echo htmlspecialchars($row['net_salary']); ?>"
                                             data-date="<?php echo htmlspecialchars($row['date_created']); ?>">
                                             <i class="fa fa-file-text-o"></i> Payslip
+                                        </button>
+                                        <button class="btn btn-sm btn-success view-history" 
+                                            data-name="<?php echo htmlspecialchars($row['name']); ?>"
+                                            style="margin-left: 5px;">
+                                            <i class="fa fa-history"></i> History
                                         </button>
                                     </td>
                                 </tr>
@@ -428,6 +434,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <label for="pagibig_deduct">Pag-IBIG deduction (Optional)</label>
                                     <input type="number" step="0.01" class="form-control" id="pagibig_deduct" name="pagibig_deduct" value="0">
                                 </div>
+                                <div class="form-group">
+                                    <label for="date_created">Date Created</label>
+                                    <input type="date" class="form-control" id="date_created" name="date_created" value="<?php echo date('Y-m-d'); ?>" required>
+                                </div>
                                 <input type="hidden" name="net_salary" value="">
                             </div>
                         </div>
@@ -494,6 +504,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <div class="form-group">
                                     <label for="edit_pagibig_deduct">Pag-IBIG deduct</label>
                                     <input type="number" class="form-control" id="edit_pagibig_deduct" name="pagibig_deduct" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit_date_created">Date Created</label>
+                                    <input type="date" class="form-control" id="edit_date_created" name="date_created" required>
                                 </div>
                                 <div class="form-group">
                                     <label for="edit_total_deduct">Total Deductions</label>
@@ -618,7 +632,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
     </div>
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <!-- Payroll History Modal -->
+    <div class="modal fade" id="historyModal" tabindex="-1" role="dialog" aria-labelledby="historyModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="historyModalLabel">Payroll History - <span id="history-employee-name"></span></h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped" id="history-table">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Position</th>
+                                    <th>Basic Pay</th>
+                                    <th>OT Pay</th>
+                                    <th>Late Deduct</th>
+                                    <th>Gross Pay</th>
+                                    <th>SSS</th>
+                                    <th>Pag-IBIG</th>
+                                    <th>Total Deduct</th>
+                                    <th>Net Salary</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-tbody">
+                                <!-- History data will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <!-- Include html2pdf library for PDF generation -->
@@ -741,6 +795,127 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $('#payslipModal').modal('show');
             });
             
+            // View history functionality
+            $('.view-history').click(function() {
+                const employeeName = $(this).data('name');
+                $('#history-employee-name').text(employeeName);
+                
+                // Load payroll history for this employee
+                loadPayrollHistory(employeeName);
+                
+                // Show the history modal
+                $('#historyModal').modal('show');
+            });
+            
+            // Load payroll history function
+            function loadPayrollHistory(employeeName) {
+                // Clear existing table data
+                $('#history-tbody').empty();
+                
+                // Make AJAX call to get history data
+                $.ajax({
+                    url: 'get_payroll_history.php',
+                    type: 'POST',
+                    data: { employee_name: employeeName },
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.success && response.data.length > 0) {
+                            let historyHTML = '';
+                            response.data.forEach(function(record) {
+                                historyHTML += `
+                                    <tr>
+                                        <td>${record.date_created}</td>
+                                        <td>${record.position}</td>
+                                        <td>₱${parseFloat(record.basic_pay).toFixed(2)}</td>
+                                        <td>₱${parseFloat(record.ot_pay).toFixed(2)}</td>
+                                        <td>₱${parseFloat(record.late_deduct).toFixed(2)}</td>
+                                        <td>₱${parseFloat(record.gross_pay).toFixed(2)}</td>
+                                        <td>₱${parseFloat(record.sss_deduct).toFixed(2)}</td>
+                                        <td>₱${parseFloat(record.pagibig_deduct).toFixed(2)}</td>
+                                        <td>₱${parseFloat(record.total_deduct).toFixed(2)}</td>
+                                        <td>₱${parseFloat(record.net_salary).toFixed(2)}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-info view-historical-payslip" 
+                                                data-id="${record.id}"
+                                                data-name="${record.name}"
+                                                data-position="${record.position}"
+                                                data-salary="${record.salary}"
+                                                data-basicpay="${record.basic_pay}"
+                                                data-otpay="${record.ot_pay}"
+                                                data-latededuct="${record.late_deduct}"
+                                                data-grosspay="${record.gross_pay}"
+                                                data-sssdeduct="${record.sss_deduct}"
+                                                data-pagibigdeduct="${record.pagibig_deduct}"
+                                                data-totaldeduct="${record.total_deduct}"
+                                                data-netsalary="${record.net_salary}"
+                                                data-date="${record.date_created}">
+                                                <i class="fa fa-file-text-o"></i> View Payslip
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `;
+                            });
+                            $('#history-tbody').html(historyHTML);
+                        } else {
+                            $('#history-tbody').html('<tr><td colspan="11" class="text-center">No payroll history found for this employee.</td></tr>');
+                        }
+                    },
+                    error: function() {
+                        $('#history-tbody').html('<tr><td colspan="11" class="text-center text-danger">Error loading payroll history.</td></tr>');
+                    }
+                });
+            }
+            
+            // Handle historical payslip view (delegated event for dynamically created buttons)
+            $(document).on('click', '.view-historical-payslip', function() {
+                const employeeData = {
+                    name: $(this).data('name'),
+                    position: $(this).data('position'),
+                    salary: $(this).data('salary'),
+                    basicPay: $(this).data('basicpay'),
+                    otPay: $(this).data('otpay'),
+                    lateDeduct: $(this).data('latededuct'),
+                    grossPay: $(this).data('grosspay'),
+                    sssDeduct: $(this).data('sssdeduct'),
+                    pagibigDeduct: $(this).data('pagibigdeduct'),
+                    totalDeduct: $(this).data('totaldeduct'),
+                    netSalary: $(this).data('netsalary'),
+                    date: $(this).data('date')
+                };
+                
+                // Fill the payslip with employee data
+                $('#payslip-name').text(employeeData.name);
+                $('#payslip-position').text(employeeData.position);
+                $('#payslip-salary').text(employeeData.salary);
+                $('#payslip-date').text(employeeData.date);
+                
+                // Calculate pay period (assuming mid-month to mid-month)
+                const payDate = new Date(employeeData.date);
+                const startDate = new Date(payDate);
+                startDate.setDate(1); // First day of the month
+                const endDate = new Date(payDate.getFullYear(), payDate.getMonth() + 1, 0); // Last day of the month
+                
+                const formatDate = (date) => {
+                    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                };
+                
+                $('#payslip-period').text(`${formatDate(startDate)} - ${formatDate(endDate)}`);
+                
+                // Fill in the earnings and deductions
+                $('#payslip-basicpay').text(parseFloat(employeeData.basicPay).toFixed(2));
+                $('#payslip-otpay').text(parseFloat(employeeData.otPay).toFixed(2));
+                $('#payslip-gross').text(parseFloat(employeeData.grossPay).toFixed(2));
+                $('#payslip-sss').text(parseFloat(employeeData.sssDeduct).toFixed(2));
+                $('#payslip-pagibig').text(parseFloat(employeeData.pagibigDeduct).toFixed(2));
+                $('#payslip-late').text(parseFloat(employeeData.lateDeduct).toFixed(2));
+                $('#payslip-deductions').text(parseFloat(employeeData.totalDeduct).toFixed(2));
+                $('#payslip-net').text(parseFloat(employeeData.netSalary).toFixed(2));
+                
+                // Hide history modal and show payslip modal
+                $('#historyModal').modal('hide');
+                $('#payslipModal').modal('show');
+            });
+            
             // Print payslip
             $('#print-payslip').click(function() {
                 const printContent = document.getElementById('printable-payslip').innerHTML;
@@ -824,6 +999,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 document.getElementById('edit_pagibig_deduct').value = cells[10].textContent.trim();
                 document.getElementById('edit_total_deduct').value = cells[11].textContent.trim();
                 document.getElementById('edit_net_salary').value = cells[12].textContent.trim();
+                
+                // Format date for input field (YYYY-MM-DD)
+                const dateCreated = cells[13].textContent.trim();
+                document.getElementById('edit_date_created').value = dateCreated;
                 
                 // Update total deductions and net salary calculations
                 updateTotalsInEditModal();

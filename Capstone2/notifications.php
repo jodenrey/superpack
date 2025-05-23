@@ -1,6 +1,6 @@
 <?php
-// Only show notifications for admin users
-if (isset($_SESSION['role']) && $_SESSION['role'] === 'Admin'):
+// Show notifications for all logged-in users
+if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true):
 ?>
 <div class="notifications-container">
     <div class="notifications-icon" id="notifications-icon">
@@ -254,7 +254,12 @@ document.addEventListener('DOMContentLoaded', function() {
             
             item.addEventListener('click', function() {
                 markAsRead(notification.id);
-                window.location.href = 'selection.php';
+                // Redirect based on notification type
+                if (notification.type === 'leave_request' || notification.type === 'leave_status') {
+                    window.location.href = 'attendance_check.php';
+                } else {
+                    window.location.href = 'selection.php';
+                }
             });
             
             notificationsList.appendChild(item);

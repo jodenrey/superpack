@@ -183,7 +183,12 @@ $header_conn->close();
             <div class="user_info">
                 <div class="current-time" id="current-time"></div>
                 
-                <?php include 'notifications.php'; ?>
+                <?php 
+                // Include notifications for all logged-in users
+                if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
+                    include 'notifications.php'; 
+                }
+                ?>
             
             <div class="user-dropdown">
                 <div class="user-profile">
