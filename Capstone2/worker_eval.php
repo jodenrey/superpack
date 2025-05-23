@@ -41,6 +41,26 @@ if ($checkEvaluatorColumn->num_rows === 0) {
     }
 }
 
+// Create promotions table if it doesn't exist
+$createPromotionsTable = "CREATE TABLE IF NOT EXISTS promotions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    employee_id VARCHAR(50) NOT NULL,
+    employee_name VARCHAR(255) NOT NULL,
+    current_position VARCHAR(255) NOT NULL,
+    promoted_to_position VARCHAR(255) NOT NULL,
+    promotion_date DATE NOT NULL,
+    promoted_by VARCHAR(255) NOT NULL,
+    evaluation_id VARCHAR(50) DEFAULT NULL,
+    reason TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)";
+
+if ($conn->query($createPromotionsTable)) {
+    // Table created or already exists
+} else {
+    echo "<div class='alert alert-danger'>Error creating promotions table: " . $conn->error . "</div>";
+}
+
 // Initialize variables
 $tasksTable = 'worker_evaluations';
 
@@ -189,6 +209,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo "Selected evaluations deleted successfully.";
         } else {
             echo "Error: " . $stmt->error;
+        }
+    }
+
+    // Handle promotion
+    if (isset($_POST['promoteEmployee'])) {
+        $employeeId = $_POST['employee_id'];
+        $employeeName = $_POST['employee_name'];
+        $currentPosition = $_POST['current_position'];
+        $promotedToPosition = $_POST['promoted_to_position'];
+        $promotionDate = $_POST['promotion_date'];
+        $reason = $_POST['reason'];
+        $evaluationId = $_POST['evaluation_id'];
+        
+        // Insert promotion record
+        $stmt = $conn->prepare("INSERT INTO promotions (employee_id, employee_name, current_position, promoted_to_position, promotion_date, promoted_by, evaluation_id, reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssssss", $employeeId, $employeeName, $currentPosition, $promotedToPosition, $promotionDate, $username, $evaluationId, $reason);
+        
+        if ($stmt->execute()) {
+            echo "<div class='alert alert-success'>Employee promoted successfully!</div>";
+            
+            // Optionally update the employee's position in the employee_records table
+            $updateStmt = $conn->prepare("UPDATE employee_records SET position = ? WHERE id = ? OR name = ?");
+            $updateStmt->bind_param("sss", $promotedToPosition, $employeeId, $employeeName);
+            
+            if ($updateStmt->execute()) {
+                echo "<div class='alert alert-info'>Employee record updated with new position.</div>";
+            }
+        } else {
+            echo "<div class='alert alert-danger'>Error promoting employee: " . $stmt->error . "</div>";
         }
     }
 
@@ -372,6 +421,7 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                                         <!-- Start the form for deletion -->
 
                                         <button class="btn btn-primary" id="editButton" name="editTaskMod" data-toggle="modal" data-target="#editEvaluationModal" disabled>Edit Evaluation</button>
+                                        <button class="btn btn-success" id="promoteButton" name="promoteEmployee" data-toggle="modal" data-target="#promoteModal" disabled>Promote Employee</button>
                                         <!-- <button class="btn btn-secondary" onclick="window.print()">Print</button> -->
                                         
                                         <div>
@@ -383,6 +433,9 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                                         </div>
                                         <button class="btn btn-info" onclick="window.location.href='worker_eval.php'">Reset</button>
                                         <button class="btn btn-warning" type="button" onclick="toggle_filter()">Filter</button>
+                                        <a href="promotion_history.php" class="btn btn-success">
+                                            <i class="fas fa-history"></i> View Promotions
+                                        </a>
                                     </div>
                                 </div>
                             </div>
@@ -442,6 +495,9 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                                             
                                             <!-- Evaluator Column (No sorting) -->
                                             <th>Evaluated By</th>
+                                            
+                                            <!-- Promotion Status Column -->
+                                            <th>Promotion Status</th>
                                         </tr>
 
                                     </thead>
@@ -470,6 +526,22 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                                             <td><?php echo $task['comments']; ?></td>
                                             <td><?php echo $task['performance']; ?></td>
                                             <td><?php echo !empty($task['evaluator']) ? $task['evaluator'] : 'Unknown'; ?></td>
+                                            <td>
+                                                <?php
+                                                // Check if this evaluation led to a promotion
+                                                $promotionCheck = $conn->prepare("SELECT * FROM promotions WHERE evaluation_id = ?");
+                                                $promotionCheck->bind_param("s", $task['id']);
+                                                $promotionCheck->execute();
+                                                $promotionResult = $promotionCheck->get_result();
+                                                
+                                                if ($promotionResult->num_rows > 0) {
+                                                    $promotion = $promotionResult->fetch_assoc();
+                                                    echo "<span class='badge badge-success'>Promoted to " . $promotion['promoted_to_position'] . "</span>";
+                                                } else {
+                                                    echo "<span class='badge badge-secondary'>Not Promoted</span>";
+                                                }
+                                                ?>
+                                            </td>
                                         </tr>
                                         <?php endforeach; ?>
                                     </tbody>
@@ -735,6 +807,7 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
             // JavaScript to handle populating the edit form with selected employee data
             document.addEventListener('DOMContentLoaded', function() {
                 const editButton = document.getElementById('editButton');
+                const promoteButton = document.getElementById('promoteButton');
                 const checkboxes = document.querySelectorAll('input[name="task_checkbox[]"]');
                 
                 // Update selected count and toggle buttons
@@ -751,9 +824,12 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                         deleteButton.disabled = selectedCount === 0;
                     }
                     
-                    // Toggle edit button - only enable if exactly one checkbox is selected
+                    // Toggle edit and promote buttons - only enable if exactly one checkbox is selected
                     if (editButton) {
                         editButton.disabled = selectedCount !== 1;
+                    }
+                    if (promoteButton) {
+                        promoteButton.disabled = selectedCount !== 1;
                     }
                 }
                 
@@ -806,9 +882,165 @@ $tasks = $result->fetch_all(MYSQLI_ASSOC);
                     }
                 });
                 
+                // Handle promote button click to populate the promotion form
+                promoteButton.addEventListener('click', function() {
+                    // Find the selected checkbox
+                    const selectedCheckbox = document.querySelector('input[name="task_checkbox[]"]:checked');
+                    
+                    if (selectedCheckbox) {
+                        // Get the parent row
+                        const selectedRow = selectedCheckbox.closest('tr');
+                        
+                        if (selectedRow) {
+                            // Get data from the row
+                            const id = selectedRow.getAttribute('data-id');
+                            const employeeId = selectedRow.getAttribute('data-employee-id');
+                            const name = selectedRow.getAttribute('data-name');
+                            const position = selectedRow.getAttribute('data-position');
+                            const department = selectedRow.getAttribute('data-department');
+                            const performance = selectedRow.getAttribute('data-performance');
+                            
+                            console.log("Loading promotion data for employee:", {
+                                id, employeeId, name, position, department, performance
+                            });
+                            
+                            // Populate the promotion form
+                            document.getElementById('promote_evaluation_id').value = id;
+                            document.getElementById('promote_employee_id').value = employeeId;
+                            document.getElementById('promote_employee_name').value = name;
+                            document.getElementById('promote_current_position').value = position;
+                            document.getElementById('promote_current_department').value = department;
+                            document.getElementById('promote_performance_score').value = performance + '/50';
+                            
+                            // Clear previous selections
+                            document.getElementById('promote_to_position').value = '';
+                            document.getElementById('promote_reason').value = '';
+                        }
+                    }
+                });
+                
                 // Initial call to set button states
                 updateSelectedCount();
             });
         </script>
+
+        <!-- Promote Employee Modal -->
+        <div class="modal fade" id="promoteModal" tabindex="-1" role="dialog" aria-labelledby="promoteModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title" id="promoteModalLabel">Promote Employee</h5>
+                        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <form method="POST">
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="mb-3 text-info">Employee Information</h6>
+                                    
+                                    <input type="hidden" id="promote_evaluation_id" name="evaluation_id">
+                                    
+                                    <div class="form-group">
+                                        <label for="promote_employee_id">Employee ID</label>
+                                        <input type="text" class="form-control" id="promote_employee_id" name="employee_id" readonly>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="promote_employee_name">Employee Name</label>
+                                        <input type="text" class="form-control" id="promote_employee_name" name="employee_name" readonly>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="promote_current_position">Current Position</label>
+                                        <input type="text" class="form-control" id="promote_current_position" name="current_position" readonly>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="promote_current_department">Current Department</label>
+                                        <input type="text" class="form-control" id="promote_current_department" name="current_department" readonly>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="promote_performance_score">Performance Score</label>
+                                        <input type="text" class="form-control" id="promote_performance_score" name="performance_score" readonly>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <h6 class="mb-3 text-success">Promotion Details</h6>
+                                    
+                                    <div class="form-group">
+                                        <label for="promote_to_position">Promote To Position *</label>
+                                        <select class="form-control" id="promote_to_position" name="promoted_to_position" required>
+                                            <option value="">Select New Position</option>
+                                            <optgroup label="Management Positions">
+                                                <option value="Team Leader">Team Leader</option>
+                                                <option value="Supervisor">Supervisor</option>
+                                                <option value="Manager">Manager</option>
+                                                <option value="Senior Manager">Senior Manager</option>
+                                                <option value="Assistant Director">Assistant Director</option>
+                                                <option value="Director">Director</option>
+                                            </optgroup>
+                                            <optgroup label="Senior Positions">
+                                                <option value="Senior Sales Representative">Senior Sales Representative</option>
+                                                <option value="Senior Purchaser">Senior Purchaser</option>
+                                                <option value="Senior Developer">Senior Developer</option>
+                                                <option value="Senior Warehouse Staff">Senior Warehouse Staff</option>
+                                                <option value="Senior Logistics Coordinator">Senior Logistics Coordinator</option>
+                                                <option value="Senior Accountant">Senior Accountant</option>
+                                            </optgroup>
+                                            <optgroup label="Specialist Positions">
+                                                <option value="Sales Specialist">Sales Specialist</option>
+                                                <option value="Purchasing Specialist">Purchasing Specialist</option>
+                                                <option value="Development Specialist">Development Specialist</option>
+                                                <option value="Logistics Specialist">Logistics Specialist</option>
+                                                <option value="Financial Analyst">Financial Analyst</option>
+                                                <option value="Quality Assurance Specialist">Quality Assurance Specialist</option>
+                                            </optgroup>
+                                            <optgroup label="Other Positions">
+                                                <option value="Trainer">Trainer</option>
+                                                <option value="Coordinator">Coordinator</option>
+                                                <option value="Assistant Manager">Assistant Manager</option>
+                                                <option value="Department Head">Department Head</option>
+                                            </optgroup>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="promote_date">Promotion Date *</label>
+                                        <input type="date" class="form-control" id="promote_date" name="promotion_date" value="<?php echo date('Y-m-d'); ?>" required>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="promote_reason">Reason for Promotion *</label>
+                                        <textarea class="form-control" id="promote_reason" name="reason" rows="4" placeholder="Enter the reason for this promotion..." required></textarea>
+                                        <small class="form-text text-muted">Explain why this employee deserves the promotion based on their evaluation.</small>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="promote_promoted_by">Promoted By</label>
+                                        <input type="text" class="form-control" id="promote_promoted_by" value="<?php echo htmlspecialchars($username); ?>" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-info mt-3">
+                                <strong>Note:</strong> This promotion will be recorded and the employee's position will be updated in their record.
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                            <button type="submit" name="promoteEmployee" class="btn btn-success">
+                                <i class="fas fa-arrow-up"></i> Confirm Promotion
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     </body>
 </html>
