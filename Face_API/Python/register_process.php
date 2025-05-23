@@ -21,11 +21,16 @@ try {
     }
 
     // Get form data
-    $name = $_POST['name'] ?? '';
+    $first_name = $_POST['first_name'] ?? '';
+    $middle_name = $_POST['middle_name'] ?? '';
+    $last_name = $_POST['last_name'] ?? '';
     $employee_id = $_POST['employee_id'] ?? '';
     $password = $_POST['password'] ?? '';
     $department = $_POST['department'] ?? '';
     $role = $_POST['role'] ?? '';
+
+    // Concatenate names to form full name, used in other parts of the script
+    $name = trim($first_name . ' ' . $middle_name . ' ' . $last_name);
     
     // Handle profile picture upload
     $photo = 'default.png'; // Default image
@@ -45,7 +50,7 @@ try {
             }
             
             // Generate unique filename
-            $newFileName = strtolower(str_replace(' ', '_', $name)) . '_' . time() . '.' . $extension;
+            $newFileName = strtolower(str_replace(' ', '_', $first_name . '_' . $last_name)) . '_' . time() . '.' . $extension;
             $targetFile = $uploadDir . $newFileName;
             
             // Move the uploaded file
@@ -62,8 +67,8 @@ try {
     }
 
     // Validate inputs
-    if (empty($name) || empty($employee_id) || empty($password) || empty($department) || empty($role)) {
-        throw new Exception('All fields are required');
+    if (empty($first_name) || empty($last_name) || empty($employee_id) || empty($password) || empty($department) || empty($role)) {
+        throw new Exception('All required fields are not filled');
     }
 
     // Check if employee ID already exists
@@ -81,15 +86,15 @@ try {
     $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
     // Generate QR code data
-    $qr_data = generateQRData($employee_id, $name, $role, $department);
+    $qr_data = generateQRData($employee_id, $first_name, $middle_name, $last_name, $role, $department);
 
     // Start a transaction to ensure all inserts are successful or none
     $conn->begin_transaction();
 
     try {
     // Insert into register table
-    $stmt = $conn->prepare("INSERT INTO register (name, role, department, employee_id, password, qr_code_data) VALUES (?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("ssssss", $name, $role, $department, $employee_id, $hashed_password, $qr_data);
+    $stmt = $conn->prepare("INSERT INTO register (first_name, middle_name, last_name, role, department, employee_id, password, qr_code_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("ssssssss", $first_name, $middle_name, $last_name, $role, $department, $employee_id, $hashed_password, $qr_data);
         $stmt->execute();
         $stmt->close();
 
@@ -252,12 +257,13 @@ try {
 exit;
 
 // Function to generate QR code data
-function generateQRData($employee_id, $name, $role, $department) {
+function generateQRData($employee_id, $first_name, $middle_name, $last_name, $role, $department) {
     // Create a more compact data structure to reduce QR code size
     // Use shorter key names and only include essential information
+    $full_name = trim($first_name . ' ' . $middle_name . ' ' . $last_name);
     $data = [
         'id' => $employee_id,              // Shorter key name
-        'n' => substr($name, 0, 20),       // Truncate name to 20 chars max
+        'n' => substr($full_name, 0, 20),       // Truncate name to 20 chars max
         'r' => substr($role, 0, 10),       // Shorter key and truncate role
         'd' => substr($department, 0, 10), // Shorter key and truncate department
         't' => time()                      // Timestamp with shorter key
@@ -278,4 +284,4 @@ function generateQRData($employee_id, $name, $role, $department) {
     
     return $result;
 }
-?> 
+?>

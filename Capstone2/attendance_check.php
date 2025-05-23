@@ -39,6 +39,9 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
+// Set MySQL session timezone to match PHP's timezone (Asia/Manila = +08:00)
+$conn->query("SET time_zone = '+08:00'");
+
 // Check if date column exists in attendance table
 $checkDateColumn = $conn->query("SHOW COLUMNS FROM attendance LIKE 'date'");
 $dateColumnExists = $checkDateColumn->num_rows > 0;
@@ -141,47 +144,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['attendance_action']))
                     $response['message'] = 'You have already timed in today.';
                 } else {
                     // Create new attendance entry
-                    $currentTime = date('Y-m-d H:i:s'); // Format datetime for MySQL
+                    // Use MySQL's NOW() function to ensure the server's timezone is used consistently
                     
                     // Your attendance table only has name, role, and time_in
-                    $insertStmt = $conn->prepare("INSERT INTO attendance (name, role, time_in) VALUES (?, ?, ?)");
-                    $insertStmt->bind_param("sss", $empName, $empRole, $currentTime);
+                    $insertStmt = $conn->prepare("INSERT INTO attendance (name, role, time_in) VALUES (?, ?, NOW())");
+                    $insertStmt->bind_param("ss", $empName, $empRole);
                     
                     if ($insertStmt->execute()) {
                         $response['success'] = true;
                         $response['message'] = 'Time in recorded successfully.';
                         
                         // Check if late
+                        // Get the time directly from MySQL to avoid timezone issues
+                        $timeQuery = $conn->query("SELECT TIME(time_in) as time_in_only, CURTIME() as current_time FROM attendance WHERE name = '$empName' AND DATE(time_in) = '$today' ORDER BY id DESC LIMIT 1");
+                        $timeData = $timeQuery->fetch_assoc();
+                        $timeInTime = strtotime($today . ' ' . $timeData['time_in_only']);
                         $eightAM = strtotime($today . ' 08:00:00');
-                        $nowTime = strtotime($currentTime);
-                        $isLate = $nowTime > $eightAM;
+                        $isLate = $timeInTime > $eightAM;
                         
                         $response['status'] = $isLate ? 'late' : 'on-time';
-                        $response['time'] = date('h:i:s A', $nowTime);
+                        $response['time'] = date('h:i:s A', $timeInTime); // Use the actual time from MySQL
                     } else {
                         $response['message'] = 'Error recording time in: ' . $insertStmt->error;
                     }
                 }
             } else if ($action === 'time_out') {
                 $today = date('Y-m-d');
-                $currentTime = date('Y-m-d H:i:s');
                 
                 if ($timeOutColumnExists) {
                     // Update the existing attendance record for today with time_out
-                    $updateStmt = $conn->prepare("UPDATE attendance SET time_out = ? WHERE name = ? AND DATE(time_in) = ?");
-                    $updateStmt->bind_param("sss", $currentTime, $empName, $today);
+                    // Use MySQL's NOW() function to ensure server timezone consistency
+                    $updateStmt = $conn->prepare("UPDATE attendance SET time_out = NOW() WHERE name = ? AND DATE(time_in) = ?");
+                    $updateStmt->bind_param("ss", $empName, $today);
                     
                     if ($updateStmt->execute() && $updateStmt->affected_rows > 0) {
                         $response['success'] = true;
                         $response['message'] = 'Time out recorded successfully.';
                         
-                        // Check if overtime
+                        // Check if overtime - use MySQL's time to avoid timezone issues
+                        $timeQuery = $conn->query("SELECT TIME(time_out) as time_out_only FROM attendance WHERE name = '$empName' AND DATE(time_in) = '$today' ORDER BY id DESC LIMIT 1");
+                        $timeData = $timeQuery->fetch_assoc();
+                        $timeOutTime = strtotime($today . ' ' . $timeData['time_out_only']);
                         $fivePM = strtotime($today . ' 17:00:00');
-                        $nowTime = strtotime($currentTime);
-                        $isOvertime = $nowTime > $fivePM;
+                        $isOvertime = $timeOutTime > $fivePM;
                         
                         $response['status'] = $isOvertime ? 'overtime' : 'regular';
-                        $response['time'] = date('h:i:s A', $nowTime);
+                        $response['time'] = date('h:i:s A', $timeOutTime);
                     } else {
                         // No attendance record found for today
                         $response['message'] = 'No time-in record found for today. Please time in first.';
@@ -190,20 +198,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['attendance_action']))
                     // Fallback to old method if time_out column doesn't exist
                     // Create a timeout record with a note in the name field
                     $timeOutName = $empName . " (Time Out)"; 
-                    $insertStmt = $conn->prepare("INSERT INTO attendance (name, role, time_in) VALUES (?, ?, ?)");
-                    $insertStmt->bind_param("sss", $timeOutName, $empRole, $currentTime);
+                    $insertStmt = $conn->prepare("INSERT INTO attendance (name, role, time_in) VALUES (?, ?, NOW())");
+                    $insertStmt->bind_param("ss", $timeOutName, $empRole);
                     
                     if ($insertStmt->execute()) {
                         $response['success'] = true;
                         $response['message'] = 'Time out recorded successfully.';
                         
-                        // Check if overtime
+                        // Check if overtime - get the actual time from MySQL
+                        $timeQuery = $conn->query("SELECT TIME(time_in) as time_out_only FROM attendance WHERE name = '$timeOutName' AND DATE(time_in) = '$today' ORDER BY id DESC LIMIT 1");
+                        $timeData = $timeQuery->fetch_assoc();
+                        $timeOutTime = strtotime($today . ' ' . $timeData['time_out_only']);
                         $fivePM = strtotime($today . ' 17:00:00');
-                        $nowTime = strtotime($currentTime);
-                        $isOvertime = $nowTime > $fivePM;
+                        $isOvertime = $timeOutTime > $fivePM;
                         
                         $response['status'] = $isOvertime ? 'overtime' : 'regular';
-                        $response['time'] = date('h:i:s A', $nowTime);
+                        $response['time'] = date('h:i:s A', $timeOutTime);
                     } else {
                         $response['message'] = 'Error recording time out: ' . $insertStmt->error;
                     }
@@ -733,16 +743,20 @@ if ($role === 'Admin' && isset($_POST['add_timeout_column'])) {
 
                                 if ($result->num_rows > 0) {
                                     while ($row = $result->fetch_assoc()) {
-                                        // Parse times for comparison
-                                        $timeIn = strtotime($row['time_in']);
-                                        $timeInFormatted = date('h:i:s A', $timeIn);
+                                        // Parse times for comparison - ensure consistent timezone handling
+                                        // Convert MySQL datetime to PHP DateTime to handle timezone correctly
+                                        $timeInObj = new DateTime($row['time_in']);
+                                        $timeInObj->setTimezone(new DateTimeZone('Asia/Manila')); // Explicitly set to Manila timezone
+                                        $timeIn = $timeInObj->getTimestamp();
+                                        $timeInFormatted = $timeInObj->format('h:i:s A');
                                         
                                         // Get the date part from time_in
                                         $datePart = date('Y-m-d', $timeIn);
                                         
                                         // Check if late (after 8am)
-                                        $eightAM = strtotime($datePart . ' 08:00:00');
-                                        $isLate = $timeIn > $eightAM;
+                                        // Create a DateTime object for 8 AM in Manila time
+                                        $eightAMObj = new DateTime($datePart . ' 08:00:00', new DateTimeZone('Asia/Manila'));
+                                        $isLate = $timeInObj > $eightAMObj;
                                         
                                         // Time in class based on lateness
                                         $timeInClass = $isLate ? 'text-danger font-weight-bold' : 'text-success font-weight-bold';
@@ -753,12 +767,16 @@ if ($role === 'Admin' && isset($_POST['add_timeout_column'])) {
                                         
                                         if (isset($row['time_out']) && !empty($row['time_out'])) {
                                             // Use time_out column if it exists and has data
-                                            $timeOut = strtotime($row['time_out']);
-                                            $timeOutFormatted = date('h:i:s A', $timeOut);
+                                            // Convert MySQL datetime to PHP DateTime with correct timezone
+                                            $timeOutObj = new DateTime($row['time_out']);
+                                            $timeOutObj->setTimezone(new DateTimeZone('Asia/Manila')); // Explicitly set to Manila timezone
+                                            $timeOut = $timeOutObj->getTimestamp();
+                                            $timeOutFormatted = $timeOutObj->format('h:i:s A');
                                             
                                             // Check if overtime (after 5pm)
-                                            $fivePM = strtotime($datePart . ' 17:00:00');
-                                            $isOvertime = $timeOut > $fivePM;
+                                            // Create a DateTime object for 5 PM in Manila time
+                                            $fivePMObj = new DateTime($datePart . ' 17:00:00', new DateTimeZone('Asia/Manila'));
+                                            $isOvertime = $timeOutObj > $fivePMObj;
                                             
                                             // Time out class based on overtime
                                             $timeOutClass = $isOvertime ? 'text-warning font-weight-bold' : '';
@@ -916,7 +934,7 @@ if ($role === 'Admin' && isset($_POST['add_timeout_column'])) {
         // Update current time display
         setInterval(function() {
             const now = new Date();
-            // Use Philippines timezone (GMT+8)
+            // Use Philippines timezone (GMT+8) explicitly
             const options = { 
                 hour: '2-digit', 
                 minute: '2-digit', 
@@ -926,6 +944,11 @@ if ($role === 'Admin' && isset($_POST['add_timeout_column'])) {
             };
             document.getElementById('current-time').textContent = now.toLocaleTimeString('en-PH', options);
         }, 1000);
+        
+        // Force initial time display
+        document.getElementById('current-time').textContent = new Date().toLocaleTimeString('en-PH', {
+            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true, timeZone: 'Asia/Manila'
+        });
         
         // Handle file input display
         $('.custom-file-input').on('change', function() {

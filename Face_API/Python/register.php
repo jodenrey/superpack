@@ -275,18 +275,27 @@
                 </div>
                 
                 <form id="register-form" enctype="multipart/form-data">
-                    <input type="text" name="name" id="name" placeholder="Full Name" pattern="^[A-Za-z\s]+$" title="Please enter only letters and spaces" oninput="this.value=this.value.replace(/[^A-Za-z\s]/g,'')" required>
-                    <div class="validation-error" id="name-error">Please enter your full name (letters only)</div>
+                    <!-- Name fields -->
+                    <input type="text" id="first_name" name="first_name" placeholder="First Name" required>
+                    <div class="validation-error" id="first-name-error">First name is required.</div>
                     
+                    <input type="text" id="middle_name" name="middle_name" placeholder="Middle Name (Optional)">
+                    
+                    <input type="text" id="last_name" name="last_name" placeholder="Last Name" required>
+                    <div class="validation-error" id="last-name-error">Last name is required.</div>
+
+                    <!-- Employee ID -->
                     <input type="text" name="employee_id" id="employee_id" placeholder="Employee ID" required>
                     <div class="validation-error" id="employee-id-error">Please enter a valid Employee ID</div>
                     
+                    <!-- Password fields -->
                     <input type="password" name="password" id="password" placeholder="Password" required>
                     <div class="validation-error" id="password-error">Password must be at least 8 characters</div>
                     
                     <input type="password" name="confirm_password" id="confirm_password" placeholder="Confirm Password" required>
                     <div class="validation-error" id="confirm-password-error">Passwords do not match</div>
                     
+                    <!-- Profile picture upload -->
                     <div style="position: relative; margin-bottom: 15px;">
                         <label for="profile_picture" style="display: block; margin-bottom: 8px; color: #666; font-size: 14px;">Profile Picture (Optional)</label>
                         <input type="file" name="profile_picture" id="profile_picture" accept="image/*" style="border: 1px dashed #ccc; padding: 10px; width: 100%; border-radius: 5px;">
@@ -296,6 +305,7 @@
                         </div>
                     </div>
                     
+                    <!-- Department and Role selection -->
                     <select name="department" id="department" required>
                         <option value="" disabled selected>Select Department</option>
                         <option value="HR">HR</option>
@@ -317,6 +327,7 @@
                     </select>
                     <div class="validation-error" id="role-error">Please select your role</div>
                     
+                    <!-- Register button -->
                     <button type="submit" id="register-button">
                         <i class="fas fa-user-plus"></i> Register
                     </button>
@@ -333,7 +344,9 @@
     <script>
         // Initialize form validation
         const form = document.getElementById('register-form');
-        const nameInput = document.getElementById('name');
+        const firstNameInput = document.getElementById('first_name');
+        const middleNameInput = document.getElementById('middle_name');
+        const lastNameInput = document.getElementById('last_name');
         const employeeIdInput = document.getElementById('employee_id');
         const passwordInput = document.getElementById('password');
         const confirmPasswordInput = document.getElementById('confirm_password');
@@ -367,14 +380,24 @@
         function validateForm() {
             let isValid = true;
             
-            // Name validation
-            if (nameInput.value.trim() === '') {
-                document.getElementById('name-error').style.display = 'block';
-                nameInput.classList.add('input-error');
+            // First Name validation
+            if (firstNameInput.value.trim() === '') {
+                document.getElementById('first-name-error').style.display = 'block';
+                firstNameInput.classList.add('input-error');
                 isValid = false;
             } else {
-                document.getElementById('name-error').style.display = 'none';
-                nameInput.classList.remove('input-error');
+                document.getElementById('first-name-error').style.display = 'none';
+                firstNameInput.classList.remove('input-error');
+            }
+
+            // Last Name validation
+            if (lastNameInput.value.trim() === '') {
+                document.getElementById('last-name-error').style.display = 'block';
+                lastNameInput.classList.add('input-error');
+                isValid = false;
+            } else {
+                document.getElementById('last-name-error').style.display = 'none';
+                lastNameInput.classList.remove('input-error');
             }
             
             // Employee ID validation

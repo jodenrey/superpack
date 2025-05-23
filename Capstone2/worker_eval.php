@@ -33,7 +33,7 @@ if ($conn->connect_error) {
 $checkEvaluatorColumn = $conn->query("SHOW COLUMNS FROM worker_evaluations LIKE 'evaluator'");
 if ($checkEvaluatorColumn->num_rows === 0) {
     // Column doesn't exist, add it
-    $addColumnQuery = "ALTER TABLE worker_evaluations ADD COLUMN evaluator VARCHAR(255) DEFAULT 'Unknown'";
+    $addColumnQuery = "ALTER TABLE worker_evaluations ADD COLUMN evaluator VARCHAR(255) DEFAULT 'Anonymous'";
     if ($conn->query($addColumnQuery)) {
         echo "<div class='alert alert-success'>Added 'evaluator' column to track which admin performed each evaluation.</div>";
     } else {

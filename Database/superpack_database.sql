@@ -233,7 +233,9 @@ CREATE TABLE `leave_request` (
 
 CREATE TABLE `register` (
   `id` int(11) NOT NULL,
-  `name` varchar(50) NOT NULL,
+  `first_name` varchar(50) NOT NULL,
+  `middle_name` varchar(50) DEFAULT NULL,
+  `last_name` varchar(50) NOT NULL,
   `role` varchar(50) NOT NULL,
   `department` text NOT NULL,
   `employee_id` varchar(50) NOT NULL UNIQUE,
@@ -503,4 +505,4 @@ COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */; 
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
